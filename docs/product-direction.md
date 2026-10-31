@@ -18,6 +18,7 @@ The same content may come from different platforms or contain different intros, 
 
 - Start with a desktop browser extension, validating Yifan first.
 - Support native video apps and other devices over time.
+- A local process with no UI or only configuration UI may handle connections and control browsers/apps through extensions or platform APIs. It runs on the user's device without project hosting.
 - Separate core synchronization from player adapters. Native app integration depends on operating-system and app APIs; media controls may expose only play/pause, without reading or setting position.
 
 ### Rooms and permissions
@@ -41,6 +42,8 @@ The same content may come from different platforms or contain different intros, 
 
 - Require no project-operated room, account, signaling, discovery, or relay service.
 - Users may choose their own network or connection helpers independently.
+- Exclude workflows requiring manual exchange of WebRTC offers, answers, or ICE details.
+- Try supported and reachable transports. User-configured signaling, STUN, and TURN are deferred.
 - No connection implementation is selected yet. Direct connectivity without relay cannot be promised for all NATs, firewalls, or carriers.
 
 ## 3. Synchronizing local anchors
@@ -67,18 +70,35 @@ A stable identity recognizes a participant but cannot discover their current pub
 
 The Git analogy applies: the protocol can be decentralized while GitHub provides optional hosting. Devices still need a usable path, such as a reachable SSH/HTTP address or an offline exchange in Git.
 
-### Candidate transports, not yet validated or selected
+### Multiple transports are the direction; implementation needs validation
+
+The desired interaction resembles nearby-sharing tools: identify paired participants, try usable connections, and exchange the same synchronization messages once connected. This does not assume access to Apple's discovery or identity mechanisms or make nearby connections work remotely.
 
 | Option | User setup | Limits |
 | --- | --- | --- |
-| Manual WebRTC exchange | Exchange full connection details through an existing chat tool, including later candidates when necessary | Replaces project signaling, but not NAT traversal or relay; reachability is usually more limited without ICE helpers |
-| Reachable address | Supply accessible IPv6, mapped ports, or another address and allow connections | Depends on firewalls, carriers, and client transport APIs; browser extensions are not general TCP listeners |
-| User LAN or virtual LAN | Put both devices on a mutually reachable network first | Extra networking tools are user-selected; browser candidates and access restrictions still need validation |
-| User-configured connection helpers | Choose or host STUN and signaling, and TURN when needed | External dependencies remain; inclusion in the product is undecided |
+| Reachable network address | Configure accessible IPv6, mapped ports, or another address and allow connections | Depends on firewalls, carriers, and client transport APIs; changed addresses need updates or rediscovery |
+| Same LAN | Allow local-network access; discovery details need validation | Usually local only; ordinary desktop extensions cannot handle arbitrary UDP broadcasts or TCP listeners alone |
+| User virtual LAN | Put both devices on a mutually reachable network first | Can connect remote devices, but users choose the network tools and Salticus discovery still needs validation |
+| Bluetooth or nearby transport | A future native component handles permissions, pairing, and connections | Nearby only; Web Bluetooth is not arbitrary peer networking, and desktop/mobile APIs differ |
+| User connection helpers, deferred | Choose or host signaling, STUN, and TURN when necessary | External dependencies; no such service is required for the first version |
 
-WebRTC signaling exchanges connection details, STUN discovers external addresses, and TURN relays when direct connections fail. These are different roles. Manual signaling removes project-hosted signaling but does not guarantee connectivity on every network.
+### Discovery, connection, and transport
 
-Test with the actual remote networks before choosing the default connection flow. Reachability remains a separate problem even for tiny messages.
+- **Discovery**: obtain candidate addresses from local pairings, user settings, or supported discovery. A stable identity is not an Internet address lookup service.
+- **Connection**: try suitable candidate paths and select a stable connection with verified identity. Combining several links is not required.
+- **Transport**: exchange the same synchronization messages once connected. Recognize the same participant across paths to prevent duplicate execution.
+- **Recovery**: try other known paths after a disconnect; resync after reconnection without replaying stale controls.
+- **No path**: explain missing reachability and configuration options without assuming a central discovery service or asking users to copy WebRTC internals.
+
+WebRTC remains a candidate, not the only selected transport. If used, connection details should flow through an existing path or future user-configured service. Existing paths can also carry synchronization directly.
+
+### Browser and native component boundaries
+
+Validate player control through the extension first. Native discovery, listeners, and Bluetooth cannot be assumed to work in an extension, which lacks general native networking APIs.
+
+Connection validation must determine whether an extension alone works on the actual networks. Otherwise use an extension plus a minimal companion, connected through Native Messaging or other platform APIs. Installation and platform differences affect usability; this is not decided yet.
+
+Test actual remote networks first. Nearby transports can improve local use but cannot replace the reachable path required between remote devices.
 
 ## 5. Distributed actions and waiting
 
@@ -102,7 +122,9 @@ Validate actual video and iframe discovery, timestamp reads, play/pause, seeks, 
 
 ### B. Remote connectivity
 
-Test the real networks without project services. Record any manual exchange, external STUN, user networking, or relay requirement. Explain failed network conditions precisely; possessing an identity code does not establish a connection.
+Validate real networks without project services or manual WebRTC exchange. Prioritize reachable addresses and user networking; record whether a minimal companion is needed. Validate path selection and reconnection. External helpers and Bluetooth come later.
+
+Explain failed conditions and missing capabilities precisely. An identity code is not connectivity, and a successful LAN test does not validate remote direct connections.
 
 ### C. Minimal two-person experience
 
