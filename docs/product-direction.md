@@ -2,7 +2,7 @@
 
 Updated: 2026-10-31
 
-This document records agreed product direction and separates proposals that have not been validated. No client or synchronization protocol has been implemented yet.
+This document records agreed direction and unvalidated proposals. A Chrome extension and Node.js companion developer preview exists; real-site and remote-network checks remain pending. See the [user guide](getting-started.md).
 
 ## 1. The problem
 
@@ -44,7 +44,7 @@ The same content may come from different platforms or contain different intros, 
 - Users may choose their own network or connection helpers independently.
 - Exclude workflows requiring manual exchange of WebRTC offers, answers, or ICE details.
 - Try supported and reachable transports. User-configured signaling, STUN, and TURN are deferred.
-- No connection implementation is selected yet. Direct connectivity without relay cannot be promised for all NATs, firewalls, or carriers.
+- The preview uses TLS 1.3, LAN mDNS discovery, and multiple addresses. Direct connections without relay cannot be promised for every NAT, firewall, or carrier.
 
 ## 3. Synchronizing local anchors
 
@@ -70,7 +70,7 @@ A stable identity recognizes a participant but cannot discover their current pub
 
 The Git analogy applies: the protocol can be decentralized while GitHub provides optional hosting. Devices still need a usable path, such as a reachable SSH/HTTP address or an offline exchange in Git.
 
-### Multiple transports are the direction; implementation needs validation
+### Multiple paths and the preview implementation
 
 The desired interaction resembles nearby-sharing tools: identify paired participants, try usable connections, and exchange the same synchronization messages once connected. This does not assume access to Apple's discovery or identity mechanisms or make nearby connections work remotely.
 
@@ -96,7 +96,7 @@ WebRTC remains a candidate, not the only selected transport. If used, connection
 
 Validate player control through the extension first. Native discovery, listeners, and Bluetooth cannot be assumed to work in an extension, which lacks general native networking APIs.
 
-Connection validation must determine whether an extension alone works on the actual networks. Otherwise use an extension plus a minimal companion, connected through Native Messaging or other platform APIs. Installation and platform differences affect usability; this is not decided yet.
+The preview uses an extension plus Node.js companion, connected by an authenticated loopback WebSocket. Native Messaging and native installers may follow. For now, start the companion and load the extension manually.
 
 Test actual remote networks first. Nearby transports can improve local use but cannot replace the reachable path required between remote devices.
 
@@ -135,6 +135,14 @@ Connect → bind each video → align manually → sync from either side → sha
 ### D. Later expansion
 
 Improve ad detection, latency and drift correction, group connections, other sites, and native clients based on real use. Clients may reuse the protocol, but each platform's playback APIs need separate validation.
+
+### Implemented behavior and validation limits
+
+- Implemented: standard HTML video and open Shadow DOM scans, frame bindings, anchor conversion, content isolation, echo suppression, manual waits, TLS fingerprints, local API keys, invitations, reconnection, and participant introduction/mesh.
+- Trust: accepting an invitation trusts its fingerprint. First inbound connections require fingerprint comparison and approval. Approved participants may introduce devices for that room; receivers save identities and verify direct TLS connections.
+- Group test: three companions form a mesh; after the inviter leaves, the remaining two still synchronize. Unreachable participants remain disconnected. Controls are not forwarded through other participants.
+- Resume: each person clears their own wait, then clicks Play together. Automatic resume is excluded initially to respect deliberate pauses.
+- Verified media behavior comes from local DOM and built-extension tests; live Yifan support is not claimed.
 
 ## 7. Open source and ownership
 

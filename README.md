@@ -6,9 +6,44 @@ Salticus is a planned open-source P2P watch-together tool. Everyone plays video 
 
 ## Project status
 
-The project is gathering requirements and validating technical options; no installable software exists yet. Start with desktop browser extensions and Yifan. Longer-term targets include other browsers, mobile devices, and a local service with no UI or only configuration UI to connect devices and control browsers or native apps, subject to platform APIs.
+A **v0.1.0 developer preview** is available: a Chrome extension and a Node.js companion on your own computer. It supports video binding, manual anchors, synchronized playback and seeking, manual waiting, encrypted direct connections, invitations, and automatic reconnection.
 
-The first environment is confirmed: both users run **macOS + Chrome** on [Yifan](https://www.yifan.tv/). Initial public-page and script inspection is complete. Actual controls and two-device connectivity remain untested; see the [validation record](docs/yifan-validation.md).
+The initial target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome** for both users. Automated tests cover two extension contexts, two DOM videos, real TLS connections, and a three-participant mesh. **The live Yifan page, installed Chrome extension, and actual remote network still need testing**; see the [validation record](docs/yifan-validation.md).
+
+Longer-term goals include other browsers, mobile devices, and local software with no UI or configuration UI only, connecting devices and controlling browsers or native apps as platform APIs allow.
+
+## Getting started
+
+Requires Node.js 22+, npm, OpenSSL (for initial device certificate generation), and Chrome 120+. Each participant runs:
+
+```sh
+git clone https://github.com/CNJ-Devs/salticus.git
+cd salticus
+npm ci
+npm run build
+npm start -- --name My-device
+```
+
+1. Open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select the repository's `dist/extension`.
+2. Open the video page and enter the companion's local address and connection key in the extension.
+3. Create a room and send its invitation through your own chat tool. Your partner pastes it to join. Compare the full device fingerprint before allowing the first connection.
+4. Each participant starts the main video once, then scans for and binds it through the extension.
+5. Identical versions use anchor 0 by default. For different sources, pause at the same scene and set each local anchor. Use the same content label.
+6. Click Sync from here. Play, pause, and seek actions on the page also go to connected participants.
+
+Remote connections require a reachable address or the user's virtual LAN. Include a public or virtual LAN address with `--advertise ADDRESS`; map public TCP 37843 to the companion if needed. mDNS finds paired LAN devices but does not traverse remote NAT.
+
+See the [user guide](docs/getting-started.md) for setup, permissions, and troubleshooting.
+
+## Development and verification
+
+```sh
+npm test
+npm run check
+npm run package
+```
+
+`npm test` builds the extension, then tests anchor conversion, player events, TLS identity checks, room isolation, group connections, reconnection, and built-extension messaging. DOM media behavior is simulated and does not validate a real site. Build outputs live in ignored `dist/`.
 
 ## Product principles
 
@@ -17,14 +52,14 @@ The first environment is confirmed: both users run **macOS + Chrome** on [Yifan]
 - **Local anchors**: participants find the same scene manually and save their own anchor and offset. Different sources may use different timestamps.
 - **Broadcast on demand**: whoever clicks Sync broadcasts their current state to connected room participants.
 - **No project-operated services**: the project runs no signaling, room, or relay servers. Connection options must state their dependencies and reachability limits.
-- **Try available paths**: use configured direct addresses, LAN, or the user's virtual LAN as supported. Validate Bluetooth and other nearby transports later. Users should not exchange WebRTC internals manually.
+- **Try available paths**: attempt encrypted connections to configured or discovered LAN, public, or virtual LAN addresses. Validate Bluetooth and nearby options later.
 - **Small groups of people who know each other**: solve watching together for couples and friends before considering very large rooms.
 - **Extension as the first client**: keep the synchronization protocol separate from player adapters so other clients can follow.
 
 ## First-phase goals
 
 1. Two people open Yifan independently and bind their local video tabs.
-2. Connect through a reachable transport supported by the devices and join the same room. Validate whether a local companion is necessary; avoid manual WebRTC detail exchange.
+2. Join the same room over direct TLS connections between local companions, confirming invitations and device fingerprints.
 3. Set local anchors at the same scene manually.
 4. Either participant clicks Sync from here; the other seeks to the corresponding position and adopts that playback state.
 5. Share play, pause, and seek controls without rebroadcasting received operations in a loop.
@@ -39,7 +74,9 @@ The project must not operate servers. Direct serverless connectivity on every ne
 
 The connection layer tries reachable IPv6/port mappings, LAN, or a user's virtual LAN and falls back among available paths. Bluetooth is a future local-companion option for nearby devices, not remote connectivity.
 
-Desktop browser network APIs are limited. Do not assume extensions can independently broadcast discovery, listen on arbitrary ports, or connect arbitrary Bluetooth peers. Add a minimal local companion if validation requires it.
+The companion provides TLS 1.3 direct connections and mDNS discovery. The extension uses an authenticated loopback-only WebSocket. Each device stores identity, rooms, and pairings in `~/.salticus`. Invitations contain certificate fingerprints and connection addresses; share them only with intended viewing partners.
+
+Room participants can invite others. Paired participants exchange approved device identities and attempt a mesh; TLS fingerprints verify identities. The first inviter has no extra playback rights, and remaining connected participants can continue after they leave.
 
 User-configured signaling, STUN, and TURN are deferred and are not first-version dependencies. Multiple transports cannot create a missing remote network path. Explain why a connection is unavailable and what can be configured.
 

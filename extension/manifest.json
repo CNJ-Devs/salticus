@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Salticus · Watch together",
+  "version": "0.1.0",
+  "description": "Play locally. Watch together. Bind a local video and use P2P to synchronize playback and progress.",
+  "minimum_chrome_version": "120",
+  "permissions": ["activeTab", "scripting", "storage", "alarms", "webNavigation", "clipboardWrite"],
+  "host_permissions": ["https://*.yifan.tv/*", "https://yifan.tv/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "worker.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Salticus · Watch together" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' ws://127.0.0.1:*" }
+}

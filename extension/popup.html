@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Salticus · Watch together</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header><div><span class="eyebrow">WATCH TOGETHER</span><h1>Salticus<span class="brand-dot">.</span></h1></div><span id="connection" class="pill">Connecting</span></header>
+  <p class="intro">Play locally. Watch together.</p>
+  <main>
+    <details id="setup" class="card" open>
+      <summary>Connect local companion<span class="step">01</span></summary>
+      <form id="setup-form">
+        <p class="help">Start Salticus companion and paste the local key shown in the terminal here.</p>
+        <label for="server">Local companion address</label><input id="server" type="url" value="ws://127.0.0.1:37842/extension" required>
+        <label for="token">Local connection key</label><input id="token" type="password" autocomplete="off" placeholder="Stored only on this device" required>
+        <button type="submit" class="primary">Connect companion</button>
+        <a href="https://github.com/CNJ-Devs/salticus#getting-started" target="_blank" rel="noopener">Setup instructions ↗</a>
+      </form>
+    </details>
+    <section class="card"><h2>Your rooms<span class="step">02</span></h2>
+      <label for="room">Current room</label><select id="room"><option value="">Create or join a room first</option></select>
+      <div class="row"><button id="create" class="secondary">Create room</button><button id="invite" class="secondary">Copy invitation</button></div>
+      <details><summary class="small-summary">Have an invitation?</summary><form id="join-form"><label class="sr-only" for="invitation">Room invitation</label><textarea id="invitation" rows="2" placeholder="Paste salticus://join/…" required></textarea><button type="submit" class="secondary">Join room</button></form></details>
+      <div id="members" class="members" aria-live="polite"></div>
+      <div id="pending"></div>
+      <details id="identity-details"><summary class="small-summary">My device fingerprint</summary><code id="identity" class="fingerprint"></code><p class="help">For the first connection, compare the full fingerprint with your partner before allowing them to join.</p></details>
+    </section>
+    <section class="card"><h2>My video<span class="step">03</span></h2>
+      <div id="binding" class="binding">Open the main video on its website, then bind it.</div>
+      <div class="row"><button id="scan" class="secondary">Scan current tab</button><button id="grant" class="secondary" hidden>Allow embedded player</button></div>
+      <div id="players"></div>
+      <form id="context-form"><label for="context">Content label <span class="label-note">Use the same label; change it for each episode</span></label><div class="row"><input id="context" maxlength="120" value="Current content" required><button type="submit" class="secondary compact">Save</button></div></form>
+      <details><summary class="small-summary">Different sources? Set anchors at the same scene</summary>
+        <p class="help">Pause at the same scene and set an anchor on each device. The initial anchor is  0 seconds.</p>
+        <button id="anchor-now" class="secondary full">Set current scene as anchor</button>
+        <form id="anchor-form"><label for="anchor">Local anchor (seconds)</label><div class="row"><input id="anchor" type="number" min="0" max="172800" step="0.01" value="0" required><button type="submit" class="secondary compact">Set</button></div></form>
+      </details>
+    </section>
+    <section class="controls" aria-label="Watch-together controls">
+      <button id="sync" class="primary sync" data-action="sync">Sync from here <span>↗</span></button>
+      <div class="row"><button class="secondary" data-action="play">▶ Play together</button><button class="secondary" data-action="pause">Ⅱ Pause together</button></div>
+      <div class="row"><button class="quiet" data-action="wait">Wait for me</button><button class="quiet" data-action="ready">I am ready</button></div>
+      <p id="waiting" class="help"></p>
+    </section>
+    <p id="feedback" class="feedback" role="status" aria-live="polite">Each website plays its own video; Salticus only synchronizes controls.</p>
+  </main>
+  <footer>Local playback · Peer-to-peer connection <span>v0.1.0</span></footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

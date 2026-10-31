@@ -50,3 +50,9 @@ Browser-tab reads repeatedly timed out. Native Chrome observation worked, but cl
 5. Verify anchor conversion and one-click synchronization with two different anchors before connecting real peers.
 
 The first usable version keeps manual waiting. Promise automatic ad detection only after testing the actual playback page.
+
+## Implemented preview
+
+The Manifest V3 extension and local companion are implemented. `npm test` runs two built-extension contexts bound to DOM media, exchanging events over two real TLS companions to verify anchors, play/pause, waiting, and content isolation. A separate test covers three-peer discovery and inviter departure.
+
+Media behavior is simulated in tests. These verify code and messaging, not actual Chrome/Yifan playback. There is no automatic ad detection or continuous drift correction.
