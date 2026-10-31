@@ -118,6 +118,8 @@ Visible connection and synchronization state matters more than claiming everyone
 
 ### A. Yifan player control
 
+Confirmed target: macOS + Chrome at `https://www.yifan.tv/`. Initial findings are in the [Yifan validation record](yifan-validation.md).
+
 Validate actual video and iframe discovery, timestamp reads, play/pause, seeks, user gestures, fullscreen behavior, and user-versus-programmatic actions. Generic HTML media controls are not assumed to cover the site.
 
 ### B. Remote connectivity

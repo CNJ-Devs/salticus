@@ -8,6 +8,8 @@ Salticus is a planned open-source P2P watch-together tool. Everyone plays video 
 
 The project is gathering requirements and validating technical options; no installable software exists yet. Start with desktop browser extensions and Yifan. Longer-term targets include other browsers, mobile devices, and a local service with no UI or only configuration UI to connect devices and control browsers or native apps, subject to platform APIs.
 
+The first environment is confirmed: both users run **macOS + Chrome** on [Yifan](https://www.yifan.tv/). Initial public-page and script inspection is complete. Actual controls and two-device connectivity remain untested; see the [validation record](docs/yifan-validation.md).
+
 ## Product principles
 
 - **Local playback**: no screen, audio, or video transmission and no video proxy. Each person signs in and accesses the source independently.
