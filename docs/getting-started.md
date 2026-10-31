@@ -1,99 +1,90 @@
-# Developer preview user guide
+# Salticus user guide
 
-## 1. Start the local companion
+## Normal use: install the app
 
-Each participant needs Node.js 22+, npm, OpenSSL, and Chrome 120+. Run on each computer:
+Both participants need **macOS 13+ and Chrome 120+**. No Node.js, npm, OpenSSL, commands, or open terminal are required.
+
+1. Download the appropriate DMG from [v0.2.0](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.0): `arm64` for Apple silicon, `x64` for Intel.
+2. Open the DMG, drag **Salticus** into Applications, and launch it.
+3. When the app shows Ready on this device, click Find browser extension.
+4. In Chrome, open `chrome://extensions`, enable Developer mode, click Load unpacked, and select the revealed `extension` folder. Do this once per computer; the extension is not in the Chrome Web Store yet.
+5. Create a room in Salticus; its invitation is copied automatically. Send it through your own chat tool. Your partner pastes it into the app to join.
+6. For the first connection, compare the complete device fingerprint and click Allow this device. The app shows actual connected participants.
+7. Open the same Yifan episode independently and click Play to load it. The extension tries to select the main video in the current tab and connect to the app without a pasted local key.
+
+**Recognized matching videos need no manual anchors or repeated Sync clicks.** A joining participant fetches the connected participant's progress and playback state. Subsequent page play, pause, and seek actions propagate automatically.
+
+If selection has not happened, open the extension to retry. Use Choose another video only when multiple players are ambiguous. Media under one minute is excluded from automatic selection to avoid short ads, but remains manually selectable.
+
+Closing the window leaves Salticus in the menu bar and keeps connections running. Use the Salticus menu to quit completely.
+
+### Preview limitations
+
+- Bundles use ad-hoc signing, **without Developer ID distribution signing or Apple notarization**. macOS may block Internet downloads. General distribution still needs signing, notarization, and Chrome Web Store publication; do not disable system security checks.
+- Automatic matching hashes page identity, episode parameters, title, and duration. It does not use title/duration alone or inspect frames. Different sources, edits, and uncertain matches need manual alignment.
+- Packaged Apple silicon startup, window actions, and the native bridge are verified. Intel bundles are available but have not run on Intel hardware.
+- Both 0.1.x users should upgrade to the matching 0.2.0 app and extension. Disable the old Chrome extension before loading the bundled one to prevent duplicate controls. Existing identity and rooms are preserved.
+
+## Different sources: manual alignment when needed
+
+1. Open Align different sources in both extensions.
+2. Enter the same content label, such as Episode 1, and click Manual alignment.
+3. Pause at the same scene and click Set current scene as anchor on each device.
+4. Either participant clicks Re-align from here when needed; the other seeks to their corresponding local position.
+
+Offsets stay local. Play, pause, and seek continue automatically without calling out timestamps. Confirm offsets after changing episodes or edits, or choose Restore automatic source alignment.
+
+Initial alignment creates no permanent controller. Joiners request a connected participant's state and accept only a matching request, room, and content reply. Simultaneous starts use deterministic device-identity ordering for that request only; everyone retains control. Offline actions are never replayed.
+
+## Ads and buffering
+
+Click Wait for me to pause together. When ready, click I am ready. Once every wait is cleared, click Play together. Readiness does not resume automatically, preserving deliberate pauses.
+
+Ads are neither automatically detected nor skipped. The initial feature is reliable manual waiting.
+
+## Remote connectivity and settings
+
+The installer handles startup and configuration, but devices still need a reachable network path. Salticus operates no room, signaling, or relay service.
+
+- **Same LAN**: invitations include local addresses; mDNS discovers paired devices. Allow requested local-network or inbound access. Guest Wi-Fi, client isolation, and firewalls may block connections.
+- **Your virtual LAN**: connect through your own network tool, then enter your virtual LAN address under Device and network settings → Direct addresses. Save and copy a new invitation. Enter one candidate per line.
+- **Public IPv6 / port mapping**: enter your reachable address in the same settings. Forward public TCP 37843 to this computer's TCP 37843 if needed. Keep local extension port 37842 private.
+
+Addresses are tried individually. Missing paths never appear connected. Bluetooth and user-configured STUN/TURN helpers are not implemented.
+
+Use the app UI to name devices, configure addresses, create/join rooms, copy invitations, and approve devices. Room selection stays coordinated with the extension.
+
+## Permissions and local data
+
+- Default host access covers only `yifan.tv` and subdomains; request other player origins as needed.
+- Chrome Native Messaging connects to the app without a pasted local key. The app registers a bridge in the current user's Chrome configuration and allows only the matching extension identity.
+- `activeTab` and `scripting` control selected video pages; `webNavigation` tracks frames/navigation/bindings; `storage` saves settings; `alarms` restores connections; `clipboardWrite` copies invitations.
+- Certificates, private keys, rooms, and participants live in `~/.salticus` and survive app upgrades. Video bindings and manual anchors live in memory.
+- Peers exchange only controls, relative positions, content digests, device identities, and addresses. Salticus reads no sign-in credentials, transmits no media, and does not proxy traffic.
+
+Chrome may still require a local Play gesture. Closed Shadow DOM, inaccessible frames, custom players, source changes, and fullscreen behavior need site-specific checks. Revocation and invitation-expiry UI are not yet available; use the preview with people you know.
+
+## Developers: run from source
+
+These commands are for development only and require Node.js 22+ and npm.
 
 ```sh
 git clone https://github.com/CNJ-Devs/salticus.git
 cd salticus
 npm ci
 npm run build
-npm start -- --name My-device
+npm run desktop:dev
 ```
 
-Keep the terminal running. The first start generates a certificate, private key, and local key in `~/.salticus`; later starts reuse identity and pairings. The local extension API listens on `127.0.0.1:37842`, and peer TLS connections listen on TCP 37843.
-
-On macOS, after installing dependencies, `salticus.command` builds the extension and starts the companion. This version is not a standalone app and does not start at login.
-
-## 2. Load the Chrome extension
-
-1. Enter `chrome://extensions` in the address bar.
-2. Enable Developer mode and click Load unpacked.
-3. Select the repository's `dist/extension` directory.
-4. Open Salticus on the video website tab.
-5. Enter the local address and key from the terminal, then click Connect companion.
-
-Each computer has its own local key. Never use your partner's key. It protects local controls and is absent from invitations.
-
-After updating code, run `npm run build`, reload the extension, and refresh open video pages. Browser or worker restarts require rebinding to avoid reusing stale page identities.
-
-## 3. Connect with your partner
-
-1. Either participant clicks Create room, then Copy invitation, and sends it through their own chat tool.
-2. Your partner opens Have an invitation? in the extension, pastes the invitation, and joins.
-3. Your partner reads their full device fingerprint. Compare it with the join request before clicking Allow this device.
-4. Wait for the participant to show as connected. Reachable paths usually connect within seconds; paired devices reconnect automatically.
-
-Reusable invitations contain room details, a device fingerprint, and candidate addresses, with no video, account, or local key. If an address changes and LAN rediscovery fails, copy a fresh invitation and rejoin to update it.
-
-Anyone in the room can invite. Paired participants exchange approved device information and attempt direct connections; remaining peers can continue after the inviter leaves. Broadcasts reach only directly connected room participants, without forwarding. Check the actual connection count. Revocation and invitation expiry UI are not yet available; this preview is for small groups who know each other.
-
-### Same LAN
-
-Invitations include local network addresses, and mDNS rediscovers paired devices. Allow the requested local-network or inbound access. Guest Wi-Fi, client isolation, and firewalls may block connections.
-
-### Remote devices on a virtual LAN
-
-Connect both devices through your own network tool first, then advertise your virtual LAN address:
-
-```sh
-npm start -- --name My-device --advertise YOUR_VIRTUAL_LAN_ADDRESS
-```
-
-Repeat `--advertise` for several candidates. Salticus neither installs nor operates a virtual LAN.
-
-### Remote devices using public IPv6 or port mapping
-
-Supply reachable public IPv6 with `--advertise`. For router mappings, supply a public IP or DNS name and map external TCP 37843 to device TCP 37843. Use `--peer-port` consistently for a different port.
-
-Keep extension API port 37842 private. Peer connections use TLS 1.3 and verify certificate fingerprints.
-
-LAN discovery and multiple addresses cannot traverse every NAT. There is currently no STUN, TURN, project signaling, or relay. Without a reachable path, devices do not show as connected.
-
-## 4. Bind and synchronize video
-
-1. Each participant opens the main video and clicks Play once to load it.
-2. Open the extension and click Scan current tab. If several videos exist, use duration, visibility, and source to bind the main player.
-3. For inaccessible cross-origin players, Allow embedded player requests only the discovered origins. Scan again after granting access.
-4. Identical versions can use anchor 0. For different sources, pause at the same scene and click Set current scene as anchor on each device.
-5. Use the same content label, such as Episode 1. Confirm anchors again after an episode or label change. Switching rooms or labels resets the current anchor to 0.
-6. Sync from here sends the sender's progress and playback state to connected peers. Page play, pause, and seek actions also broadcast.
-
-For ads or buffering, click Wait for me, then I am ready. Once everyone clears their own wait, click Play together. The first version neither detects ads nor resumes automatically.
-
-If Chrome blocks remote play, click Play locally once and sync again. Rebind after navigation, an episode change, or player replacement. Closed Shadow DOM, inaccessible frames, and custom site players may remain unsupported.
-
-## 5. Permissions and data
-
-- Default host access: `yifan.tv` and its subdomains.
-- `activeTab`, `scripting`: scan and control video on user interaction.
-- `webNavigation`: identify frames, navigation, and expired bindings.
-- `storage`: save local companion settings and the selected room, restricted to trusted extension contexts.
-- `alarms`: restore the local companion connection.
-- `clipboardWrite`: copy invitations when clicked.
-- Request other HTTP/HTTPS origins only when needed for a selected site or embedded player.
-
-The companion stores identity, rooms, and pairings in its data directory. Current video bindings and anchors live in memory and require rebinding after restart. There is no historical anchor library.
-
-Participants exchange control actions, anchor-relative positions, content labels, identities, and connection information. Salticus reads no sign-in credentials, transmits no media, and sets no proxy. No telemetry or project online service is required.
-
-## 6. Development checks
+Alternatively run `npm start -- --name My-device` for the standalone companion. In Connect Salticus app → Developer connection settings, paste its address and local key. Custom ports, advertised addresses, and data directories remain supported.
 
 ```sh
 npm test
 npm run check
 npm run package
+npm run desktop:package
 ```
 
-Tests cover real local TLS and built-extension DOM behavior. Live Chrome/Yifan checks covered binding, play/pause, anchors, peer sync, and waiting; see the [validation record](yifan-validation.md) for results and retests. Two-Mac network permissions and remote connectivity remain untested.
+The last command creates Apple silicon and Intel DMG/ZIP bundles on macOS under `dist/desktop`. Extension/source archives live in `dist/packages`. Reload the extension and refresh open video pages after extension changes.
+
+See [Yifan validation](yifan-validation.md) for live evidence and testing limits.

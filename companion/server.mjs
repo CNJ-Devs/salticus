@@ -33,6 +33,7 @@ export class Companion {
     this.config = await loadConfig(this.options.directory, this.options.name);
     if (this.config.version !== 1 || !/^[a-f0-9]{64}$/.test(this.config.token) || !this.config.rooms || !this.config.contacts) throw new Error('Unsupported configuration');
     if (this.options.name) { this.config.name = text(this.options.name); await this.persist(); }
+    if (!this.options.advertise.length && this.config.advertise) this.options.advertise = this.config.advertise;
     try {
       this.peerServer = tls.createServer({ key: this.identity.key, cert: this.identity.cert,
         requestCert: true, rejectUnauthorized: false, minVersion: 'TLSv1.3', handshakeTimeout: 8000 }, socket => this.attachPeer(socket));
@@ -207,6 +208,7 @@ export class Companion {
             const peer = this.peers.get(peerId);
             if (peer?.socket !== socket || event.sender !== peerId || !peer.rooms.includes(event.room)) throw new Error('unauthorized event');
             if (this.gate.accept(event)) {
+              if (event.target && event.target !== this.identity.id) continue;
               this.updateWaiting(event);
               this.notify({ type: 'event', event }); this.publish();
             }
@@ -292,7 +294,7 @@ export class Companion {
   }
 
   status() {
-    return { peer: this.identity.id, name: this.config.name, rooms: Object.entries(this.config.rooms).map(([id, room]) => ({ id, name: room.name })),
+    return { peer: this.identity.id, name: this.config.name, activeRoom: this.config.activeRoom, advertise: this.options.advertise, rooms: Object.entries(this.config.rooms).map(([id, room]) => ({ id, name: room.name })),
       peers: Object.entries(this.config.contacts).map(([id, contact]) => ({ id, name: contact.name, rooms: contact.rooms,
         connected: this.peers.has(id), route: this.peers.get(id)?.endpoint ? 'Direct connection' : (this.peers.has(id) ? 'Inbound direct connection' : 'Disconnected') })),
       pending: [...this.pending.values()].map(({ id, name, rooms }) => ({ id, name, rooms })),
@@ -310,9 +312,20 @@ export class Companion {
 
   async command(method, args) {
     if (method === 'status') return this.status();
+    if (method === 'selectRoom') {
+      if (!Object.hasOwn(this.config.rooms, args.room)) throw new Error('Room not found');
+      this.config.activeRoom = args.room; await this.persist(); this.publish(); return {};
+    }
+    if (method === 'configure') {
+      const name = text(args.name);
+      if (!Array.isArray(args.advertise) || args.advertise.length > 16 || !args.advertise.every(host => validateEndpoint({ host, port: this.peerPort }))) throw new Error('Enter valid network addresses');
+      this.config.name = name; this.config.advertise = args.advertise; this.options.advertise = args.advertise;
+      await this.persist(); this.scheduleRoster(); this.publish(); return {};
+    }
     if (method === 'createRoom') {
       if (Object.keys(this.config.rooms).length >= 32) throw new Error('Room limit reached');
       const id = randomUUID(); this.config.rooms[id] = { name: text(args.name) };
+      this.config.activeRoom = id;
       await this.persist(); this.publish(); return { room: id, invite: this.invite(id) };
     }
     if (method === 'invite') return { invite: this.invite(args.room) };
@@ -321,6 +334,7 @@ export class Companion {
       if (invite.peer === this.identity.id) throw new Error('This is your own invitation. Send it to your partner');
       if (Object.keys(this.config.rooms).length >= 32 && !this.config.rooms[invite.room]) throw new Error('Room limit reached');
       this.config.rooms[invite.room] ??= { name: invite.name };
+      this.config.activeRoom = invite.room;
       const previous = this.config.contacts[invite.peer];
       this.config.contacts[invite.peer] = { name: previous?.name ?? 'My partner', endpoints: invite.endpoints,
         rooms: [...new Set([...(previous?.rooms ?? []), invite.room])] };
@@ -344,10 +358,11 @@ export class Companion {
       if (['play', 'sync', 'seek'].includes(args.action) && !args.paused &&
           [...(this.waiting.get(args.room)?.values() ?? [])].includes(args.context)) throw new Error('A participant is still waiting. Each person must clear their own wait first');
       const event = validateEvent({ v: VERSION, id: randomUUID(), session: this.session, seq: ++this.sequence,
-        sender: this.identity.id, room: args.room, context: args.context, action: args.action, position: args.position, paused: args.paused });
+        sender: this.identity.id, room: args.room, context: args.context, action: args.action, position: args.position, paused: args.paused,
+        ...(args.request ? { request: args.request } : {}), ...(args.target ? { target: args.target } : {}) });
       this.gate.accept(event); this.updateWaiting(event);
       let recipients = 0;
-      for (const peer of this.peers.values()) if (peer.rooms.includes(event.room)) { this.write(peer.socket, { type: 'event', event }); recipients++; }
+      for (const [id, peer] of this.peers) if (peer.rooms.includes(event.room) && (!event.target || event.target === id)) { this.write(peer.socket, { type: 'event', event }); recipients++; }
       this.publish(); return { recipients, event };
     }
     throw new Error('Unsupported operation');

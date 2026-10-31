@@ -4,10 +4,46 @@
   "version": "0.1.0",
   "description": "Play locally. Watch together. Bind a local video and use P2P to synchronize playback and progress.",
   "minimum_chrome_version": "120",
-  "permissions": ["activeTab", "scripting", "storage", "alarms", "webNavigation", "clipboardWrite"],
-  "host_permissions": ["https://*.yifan.tv/*", "https://yifan.tv/*"],
-  "optional_host_permissions": ["https://*/*", "http://*/*"],
-  "background": { "service_worker": "worker.js", "type": "module" },
-  "action": { "default_popup": "popup.html", "default_title": "Salticus · Watch together" },
-  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' ws://127.0.0.1:*" }
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "webNavigation",
+    "clipboardWrite",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "https://*.yifan.tv/*",
+    "https://yifan.tv/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Salticus · Watch together"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'self' ws://127.0.0.1:*"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAojdxhOjUZy3X4guMzaj0oDR8S8f4AR8+V9B7cMU2Q1fnoaFalyo1ipEYsZvAijiR5XVTKzU8W3suYnBabJl6nQt/RQglScoXF9ExAKK30rNIBcmaQCvz5IAkxTPL7UBEQpF1pfKwMDfm0qpr+g+A9cvNktQFDTn+Sokc0VKaCLfeVAshzCVkQ+G86bWAulrceEYqX121TqgYdA6gQhCEcsgkrZR3IrMVhI1wAyAJql8Batvl9yaRL5y8IJ8gRfUaiJ87NiS9V2vYmvct1JbkzUYx1XBUWeXrAB12EuFM0oYEsheZrUS+ClRa59C3geu04IeuoTP7gQwsmmzdXnyXUwIDAQAB",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.yifan.tv/*",
+        "https://yifan.tv/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
 }

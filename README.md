@@ -2,11 +2,11 @@
 
 **Play locally. Watch together.**
 
-Salticus is a planned open-source P2P watch-together tool. Everyone plays video with their own device, account, source, and network. Salticus exchanges playback controls and progress so people in different places can watch together.
+Salticus is an open-source P2P watch-together tool. Everyone uses their own device, account, source, and network. Salticus exchanges playback controls and progress so people in different places can watch together.
 
 ## Project status
 
-A **v0.1.0 developer preview** is available: a Chrome extension and a Node.js companion on your own computer. It supports video binding, manual anchors, synchronized playback and seeking, manual waiting, encrypted direct connections, invitations, and automatic reconnection.
+A **v0.2.0 desktop preview** is available: a macOS app installer and Chrome extension. The app bundles its runtime and offers room, device, and network UI, without Node.js, OpenSSL, or a terminal for users. Matching videos select the main player, align initially, and follow playback controls; different versions use manual anchors.
 
 The initial target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Live checks verified binding, play/pause, anchors, TLS sync, manual waits, the paused-seek autoplay fix, and native play/pause propagation. Automated tests cover two extensions, DOM media, real TLS, and three-peer connectivity. **Two remote devices still need testing**; see the [validation record](docs/yifan-validation.md).
 
@@ -14,24 +14,11 @@ Longer-term goals include other browsers, mobile devices, and local software wit
 
 ## Getting started
 
-Requires Node.js 22+, npm, OpenSSL (for initial device certificate generation), and Chrome 120+. Each participant runs:
+Both participants download the [macOS installer](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.0) and launch Salticus. Use Find browser extension for first-time loading, create/join a room, and open the same episode. The app and extension connect without a pasted local key.
 
-```sh
-git clone https://github.com/CNJ-Devs/salticus.git
-cd salticus
-npm ci
-npm run build
-npm start -- --name My-device
-```
+Preview bundles use ad-hoc signing. **Apple distribution signing, notarization, and Chrome Web Store publication are not complete**. First-time extension loading is manual, and macOS may block downloaded apps. Apple silicon startup is verified; Intel needs hardware testing.
 
-1. Open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select the repository's `dist/extension`.
-2. Open the video page and enter the companion's local address and connection key in the extension.
-3. Create a room and send its invitation through your own chat tool. Your partner pastes it to join. Compare the full device fingerprint before allowing the first connection.
-4. Each participant starts the main video once, then scans for and binds it through the extension.
-5. Identical versions use anchor 0 by default. For different sources, pause at the same scene and set each local anchor. Use the same content label.
-6. Click Sync from here. Play, pause, and seek actions on the page also go to connected participants.
-
-Remote connections require a reachable address or the user's virtual LAN. Include a public or virtual LAN address with `--advertise ADDRESS`; map public TCP 37843 to the companion if needed. mDNS finds paired LAN devices but does not traverse remote NAT.
+Remote devices need a reachable address or the user's virtual LAN. Enter direct candidates in Device and network settings. LAN discovery does not traverse remote NAT.
 
 See the [user guide](docs/getting-started.md) for setup, permissions, and troubleshooting.
 
@@ -41,16 +28,17 @@ See the [user guide](docs/getting-started.md) for setup, permissions, and troubl
 npm test
 npm run check
 npm run package
+npm run desktop:package
 ```
 
-`npm test` builds the extension, then tests anchor conversion, player events, TLS identity checks, room isolation, group connections, reconnection, and built-extension messaging. DOM media behavior is simulated and does not validate a real site. Build outputs live in ignored `dist/`.
+Development needs Node.js 22+ and npm. `npm run desktop:dev` launches the app. Tests build the extension and cover automatic alignment, content isolation, anchors, player events, Native Messaging, TLS identity, group connections, and reconnection. DOM media is simulated; live-site evidence is separate. Installers live in ignored `dist/`.
 
 ## Product principles
 
 - **Local playback**: no screen, audio, or video transmission and no video proxy. Each person signs in and accesses the source independently.
 - **Equal participants**: no permanent controller. Everyone can sync, play, pause, and seek by default.
-- **Local anchors**: participants find the same scene manually and save their own anchor and offset. Different sources may use different timestamps.
-- **Broadcast on demand**: whoever clicks Sync broadcasts their current state to connected room participants.
+- **Automatic matching-video alignment**: recognized matching videos use zero offset, fetch current progress when joining, and propagate normal controls.
+- **Local alignment for different sources**: manually find the same scene only for different versions and save local offsets. Re-align is an occasional correction.
 - **No project-operated services**: the project runs no signaling, room, or relay servers. Connection options must state their dependencies and reachability limits.
 - **Try available paths**: attempt encrypted connections to configured or discovered LAN, public, or virtual LAN addresses. Validate Bluetooth and nearby options later.
 - **Small groups of people who know each other**: solve watching together for couples and friends before considering very large rooms.
@@ -60,8 +48,8 @@ npm run package
 
 1. Two people open Yifan independently and bind their local video tabs.
 2. Join the same room over direct TLS connections between local companions, confirming invitations and device fingerprints.
-3. Set local anchors at the same scene manually.
-4. Either participant clicks Sync from here; the other seeks to the corresponding position and adopts that playback state.
+3. Align matching videos automatically; set matching-scene anchors only for different sources.
+4. Request current state automatically on joining. Either participant can still broadcast local progress manually when correction is needed.
 5. Share play, pause, and seek controls without rebroadcasting received operations in a loop.
 6. Provide Wait for me / I am ready to handle ads and buffering manually at first.
 7. Show connection state clearly and allow one-click resynchronization after reconnecting.
@@ -74,7 +62,7 @@ The project must not operate servers. Direct serverless connectivity on every ne
 
 The connection layer tries reachable IPv6/port mappings, LAN, or a user's virtual LAN and falls back among available paths. Bluetooth is a future local-companion option for nearby devices, not remote connectivity.
 
-The companion provides TLS 1.3 direct connections and mDNS discovery. The extension uses an authenticated loopback-only WebSocket. Each device stores identity, rooms, and pairings in `~/.salticus`. Invitations contain certificate fingerprints and connection addresses; share them only with intended viewing partners.
+The app provides TLS 1.3 direct connections and mDNS discovery. The extension connects through Chrome Native Messaging; development retains an authenticated loopback WebSocket. Identity, rooms, and pairings live in `~/.salticus` on each device. Invitations include fingerprints and addresses; send them only to intended partners.
 
 Room participants can invite others. Paired participants exchange approved device identities and attempt a mesh; TLS fingerprints verify identities. The first inviter has no extra playback rights, and remaining connected participants can continue after they leave.
 

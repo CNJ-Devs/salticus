@@ -2,7 +2,7 @@
 
 Updated: 2026-10-31
 
-This document records agreed direction and unvalidated proposals. A Chrome extension and Node.js companion developer preview exists; real-site and remote-network checks remain pending. See the [user guide](getting-started.md).
+This document separates agreed direction from unvalidated proposals. A macOS installer, configuration UI, and Chrome extension exist. Basic Yifan controls have been tested; remote two-device networking remains unverified. See the [user guide](getting-started.md).
 
 ## 1. The problem
 
@@ -32,8 +32,9 @@ The same content may come from different platforms or contain different intros, 
 
 ### Synchronization interaction
 
-- Find the same scene manually and record its local timestamp as an anchor on each device.
-- Whoever clicks Sync from here broadcasts their state; each receiver converts the position for its own source.
+- Recognized matching videos use zero offset, request current progress when joining, and propagate normal controls.
+- Only different sources or edits require finding the same scene and recording local anchors.
+- Keep manual resynchronization as occasional recovery, outside the normal matching-source flow.
 - Propagate user-initiated play, pause, and seek actions. Applying remote actions or background corrections must not create new user-action broadcasts.
 - The room waits together for ads or buffering by default. Manual wait and clear-wait controls must work when detection is unavailable.
 - Do not optimize for thousand-person rooms. A future room setting may choose whether one participant's ad pauses everyone.
@@ -48,7 +49,7 @@ The same content may come from different platforms or contain different intros, 
 
 ## 3. Synchronizing local anchors
 
-No permanent controller, server clock, or continuously authoritative timeline is needed. Participants still need to confirm that their anchors refer to the same scene.
+No permanent controller, server clock, or authoritative running timeline is required. Matching page/episode/title/duration digests use zero offset; mismatched digests do not trigger automatic seeks. Participants confirm same-scene anchors only for different versions.
 
 For example, the same scene is at 600 seconds in source A and 588 seconds in source B. When A reaches 660 seconds and syncs, B seeks to:
 
@@ -96,7 +97,7 @@ WebRTC remains a candidate, not the only selected transport. If used, connection
 
 Validate player control through the extension first. Native discovery, listeners, and Bluetooth cannot be assumed to work in an extension, which lacks general native networking APIs.
 
-The preview uses an extension plus Node.js companion, connected by an authenticated loopback WebSocket. Native Messaging and native installers may follow. For now, start the companion and load the extension manually.
+The preview uses a macOS app plus Chrome extension. Runtime and certificate generation are bundled; room/network setup is in the UI. Native Messaging is the default, with authenticated loopback WebSocket for developers. First-time extension loading remains manual; distribution signing and notarization are incomplete.
 
 Test actual remote networks first. Nearby transports can improve local use but cannot replace the reachable path required between remote devices.
 
@@ -130,7 +131,7 @@ Explain failed conditions and missing capabilities precisely. An identity code i
 
 ### C. Minimal two-person experience
 
-Connect → bind each video → align manually → sync from either side → share playback and seek controls → wait manually → resync after reconnecting.
+Install app/extension → create/join → auto-select main video → auto-align matching sources and propagate controls → wait manually. Open manual alignment only for different sources; retain resync as recovery.
 
 ### D. Later expansion
 
@@ -142,7 +143,8 @@ Improve ad detection, latency and drift correction, group connections, other sit
 - Trust: accepting an invitation trusts its fingerprint. First inbound connections require fingerprint comparison and approval. Approved participants may introduce devices for that room; receivers save identities and verify direct TLS connections.
 - Group test: three companions form a mesh; after the inviter leaves, the remaining two still synchronize. Unreachable participants remain disconnected. Controls are not forwarded through other participants.
 - Resume: each person clears their own wait, then clicks Play together. Automatic resume is excluded initially to respect deliberate pauses.
-- Verified media behavior comes from local DOM and built-extension tests; live Yifan support is not claimed.
+- Live Yifan checks verified binding, play/pause, anchors, remote sync, waiting, and native button propagation. Built-extension integration tests cover new automatic matching/initial alignment, pending real two-device verification.
+- Apple silicon packaged startup, windows, invitations, and bundled native bridge are tested. Intel hardware testing remains pending.
 
 ## 7. Open source and ownership
 

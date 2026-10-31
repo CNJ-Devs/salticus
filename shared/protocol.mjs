@@ -1,6 +1,6 @@
 export const VERSION = 1;
 export const MAX_MESSAGE_BYTES = 32 * 1024;
-export const ACTIONS = new Set(['sync', 'play', 'pause', 'seek', 'wait', 'ready']);
+export const ACTIONS = new Set(['sync', 'play', 'pause', 'seek', 'wait', 'ready', 'request-state', 'state']);
 export const DEFAULT_CONTEXT = 'Current content';
 
 export function finite(value, min = -172800, max = 172800) {
@@ -24,6 +24,9 @@ export function validateEvent(event) {
       !finite(event.position) || typeof event.paused !== 'boolean') {
     throw new Error('Invalid synchronization message');
   }
+  if (['request-state', 'state'].includes(event.action) && !validId(event.request)) throw new Error('Invalid synchronization request');
+  if (event.action === 'state' && !/^[a-f0-9]{64}$/.test(event.target)) throw new Error('Invalid synchronization recipient');
+  if (event.target !== undefined && !/^[a-f0-9]{64}$/.test(event.target)) throw new Error('Invalid synchronization recipient');
   return event;
 }
 

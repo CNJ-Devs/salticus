@@ -4,7 +4,7 @@ if (!globalThis.__salticusContent) {
   globalThis.__salticusContent = true;
   const documentKey = crypto.randomUUID();
   const videos = new Map();
-  let controller, boundId, boundUrl;
+  let controller, boundId, boundUrl, boundSource, boundDuration, boundTitle;
   const notify = message => { try { chrome.runtime.sendMessage({ ...message, documentKey }).catch(() => {}); } catch {} };
   function scan(root = document) {
     for (const video of root.querySelectorAll('video')) {
@@ -20,6 +20,7 @@ if (!globalThis.__salticusContent) {
       return { id, label: `Video ${index + 1}`, time: video.currentTime,
         duration: Number.isFinite(video.duration) ? video.duration : null,
         paused: video.paused, ready: video.readyState,
+        pageUrl: location.href, pageTitle: document.title,
         visible: rect.width > 0 && rect.height > 0,
         area: rect.width * rect.height, documentKey };
     });
@@ -33,6 +34,7 @@ if (!globalThis.__salticusContent) {
         scan(); const video = videos.get(message.player);
         if (!video) throw new Error('The player changed. Scan again');
         controller?.dispose(); boundId = message.player; boundUrl = location.href;
+        boundSource = video.currentSrc; boundDuration = video.duration; boundTitle = document.title;
         controller = new MediaController(video, (action, state) => notify({ type: 'playerAction', action, state, player: boundId }));
         return { state: controller.snapshot(), documentKey };
       }
@@ -44,8 +46,19 @@ if (!globalThis.__salticusContent) {
     return true;
   });
   setInterval(() => {
-    if (controller && (!controller.video.isConnected || location.href !== boundUrl)) {
+    if (controller && (!controller.video.isConnected || location.href !== boundUrl || document.title !== boundTitle ||
+        controller.video.currentSrc !== boundSource || (Number.isFinite(controller.video.duration) && Math.abs(controller.video.duration - boundDuration) > 1))) {
       controller.dispose(); controller = null; notify({ type: 'bindingLost', player: boundId }); boundId = null;
+      availability = '';
     }
   }, 1000);
+  // Only announces availability; the worker binds only an active tab in a room.
+  let availability = '';
+  const announce = () => {
+    const state = list();
+    const signature = JSON.stringify(state.map(p => [p.id, p.ready, p.duration, p.pageUrl, p.pageTitle]));
+    if (signature !== availability) { availability = signature; notify({ type: 'playerAvailable' }); }
+  };
+  document.addEventListener('loadedmetadata', announce, true);
+  setInterval(announce, 2000);
 }

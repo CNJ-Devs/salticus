@@ -10,15 +10,19 @@
   <header><div><span class="eyebrow">WATCH TOGETHER</span><h1>Salticus<span class="brand-dot">.</span></h1></div><span id="connection" class="pill">Connecting</span></header>
   <p class="intro">Play locally. Watch together.</p>
   <main>
-    <details id="setup" class="card" open>
-      <summary>Connect local companion<span class="step">01</span></summary>
+    <details id="setup" class="card">
+      <summary>Connect Salticus app<span class="step">01</span></summary>
+      <p class="help">Open the Salticus app to connect automatically, without a terminal or pasted key.</p>
+      <button id="connect-app" class="secondary full">Connect app</button>
+      <details><summary class="small-summary">Developer connection settings</summary>
       <form id="setup-form">
-        <p class="help">Start Salticus companion and paste the local key shown in the terminal here.</p>
+        <p class="help">For developers connecting to the command-line companion.</p>
         <label for="server">Local companion address</label><input id="server" type="url" value="ws://127.0.0.1:37842/extension" required>
         <label for="token">Local connection key</label><input id="token" type="password" autocomplete="off" placeholder="Stored only on this device" required>
         <button type="submit" class="primary">Connect companion</button>
         <a href="https://github.com/CNJ-Devs/salticus#getting-started" target="_blank" rel="noopener">Setup instructions ↗</a>
       </form>
+      </details>
     </details>
     <section class="card"><h2>Your rooms<span class="step">02</span></h2>
       <label for="room">Current room</label><select id="room"><option value="">Create or join a room first</option></select>
@@ -29,18 +33,20 @@
       <details id="identity-details"><summary class="small-summary">My device fingerprint</summary><code id="identity" class="fingerprint"></code><p class="help">For the first connection, compare the full fingerprint with your partner before allowing them to join.</p></details>
     </section>
     <section class="card"><h2>My video<span class="step">03</span></h2>
-      <div id="binding" class="binding">Open the main video on its website, then bind it.</div>
-      <div class="row"><button id="scan" class="secondary">Scan current tab</button><button id="grant" class="secondary" hidden>Allow embedded player</button></div>
+      <div id="binding" class="binding">Waiting for the main video in the current tab…</div>
+      <p class="help">Matching videos align automatically. Play, pause, or seek on the page and your partner follows.</p>
+      <div class="row"><button id="scan" class="secondary">Choose another video</button><button id="grant" class="secondary" hidden>Allow embedded player</button></div>
       <div id="players"></div>
-      <form id="context-form"><label for="context">Content label <span class="label-note">Use the same label; change it for each episode</span></label><div class="row"><input id="context" maxlength="120" value="Current content" required><button type="submit" class="secondary compact">Save</button></div></form>
-      <details><summary class="small-summary">Different sources? Set anchors at the same scene</summary>
-        <p class="help">Pause at the same scene and set an anchor on each device. The initial anchor is  0 seconds.</p>
+      <details><summary class="small-summary">Align different sources</summary>
+        <form id="context-form"><label for="context">Shared content label <span class="label-note">e.g. Episode 1</span></label><div class="row"><input id="context" maxlength="120" value="Current content" required><button type="submit" class="secondary compact">Manual alignment</button></div></form>
+        <p class="help">For different versions only: save the same content label, pause at the same scene, and set an anchor on each device.</p>
         <button id="anchor-now" class="secondary full">Set current scene as anchor</button>
         <form id="anchor-form"><label for="anchor">Local anchor (seconds)</label><div class="row"><input id="anchor" type="number" min="0" max="172800" step="0.01" value="0" required><button type="submit" class="secondary compact">Set</button></div></form>
+        <button id="automatic" class="quiet full">Restore automatic source alignment</button>
       </details>
     </section>
     <section class="controls" aria-label="Watch-together controls">
-      <button id="sync" class="primary sync" data-action="sync">Sync from here <span>↗</span></button>
+      <button id="sync" class="primary sync" data-action="sync">Re-align from here when needed <span>↗</span></button>
       <div class="row"><button class="secondary" data-action="play">▶ Play together</button><button class="secondary" data-action="pause">Ⅱ Pause together</button></div>
       <div class="row"><button class="quiet" data-action="wait">Wait for me</button><button class="quiet" data-action="ready">I am ready</button></div>
       <p id="waiting" class="help"></p>

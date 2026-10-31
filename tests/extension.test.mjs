@@ -23,11 +23,11 @@ function makeWindow(url) {
     // Only our built bundles are evaluated; no website JavaScript enters this test process.
     suppressInsecureJavaScriptEnvironmentWarning: true } });
 }
-async function extension(t, name, startTime) {
+async function extension(t, name, startTime, page = 'https://www.yifan.tv/play/test', native = false) {
   const directory = await mkdtemp(join(tmpdir(), 'salticus-ext-test-'));
   const server = await new Companion({ directory, name, apiPort: 0, peerPort: 0, peerHost: '127.0.0.1', discovery: false }).start();
   server.endpoints = () => [{ host: '127.0.0.1', port: server.peerPort }];
-  const window = makeWindow('https://www.yifan.tv/play/test');
+  const window = makeWindow(page);
   const video = window.document.createElement('video'); window.document.body.append(video);
   let time = startTime, paused = true;
   Object.defineProperties(video, {
@@ -38,7 +38,7 @@ async function extension(t, name, startTime) {
   video.play = async () => { if (!paused) return; paused = false; video.dispatchEvent(new window.Event('play')); };
   video.pause = () => { if (paused) return; paused = true; video.dispatchEvent(new window.Event('pause')); };
   const runtimeListeners = [], contentListeners = [], timers = new Set(), sockets = new Set();
-  const stored = { config: { url: `ws://127.0.0.1:${server.apiPort}/extension`, token: server.config.token } };
+  const stored = native ? {} : { config: { url: `ws://127.0.0.1:${server.apiPort}/extension`, token: server.config.token } };
   const runtimeId = 'a'.repeat(32);
   const sendToWorker = (message, sender) => new Promise((resolve, reject) => {
     let answered = false;
@@ -58,12 +58,20 @@ async function extension(t, name, startTime) {
     scripting: { executeScript: async () => window.eval(contentCode) },
     alarms: { create() {}, onAlarm: { addListener() {} } },
   };
+  if (native) chrome.runtime.connectNative = () => {
+    const ws = new WebSocket(`ws://127.0.0.1:${server.apiPort}/extension`, ['salticus', server.config.token]); sockets.add(ws);
+    const messages = [], disconnects = []; ws.on('error', () => {});
+    ws.on('message', bytes => { for (const listener of messages) listener(JSON.parse(bytes)); });
+    ws.on('close', () => { for (const listener of disconnects) listener(); });
+    return { postMessage: value => ws.send(JSON.stringify(value)), disconnect: () => ws.terminate(),
+      onMessage: { addListener: fn => messages.push(fn) }, onDisconnect: { addListener: fn => disconnects.push(fn) } };
+  };
   class TrackedWebSocket extends WebSocket {
     constructor(...args) { super(...args); sockets.add(this); this.on('error', () => {}); }
   }
   const interval = (fn, ms) => { const id = setInterval(fn, ms); id.unref(); timers.add(id); return id; };
   const timeout = (fn, ms) => { const id = setTimeout(fn, ms); id.unref(); timers.add(id); return id; };
-  const context = vm.createContext({ chrome, WebSocket: TrackedWebSocket, crypto: webcrypto, URL, console,
+  const context = vm.createContext({ chrome, WebSocket: TrackedWebSocket, crypto: webcrypto, URL, TextEncoder, console,
     setInterval: interval, setTimeout: timeout, clearTimeout, clearInterval });
   vm.runInContext(workerCode, context);
   const call = async (method, args = {}) => {
@@ -83,7 +91,7 @@ async function extension(t, name, startTime) {
 }
 
 test('built extensions control two DOM players over two real TLS companions without echo', async t => {
-  const a = await extension(t, 'A', 600), b = await extension(t, 'B', 588);
+  const a = await extension(t, 'A', 600, 'https://www.yifan.tv/play/source-a'), b = await extension(t, 'B', 588, 'https://www.yifan.tv/play/source-b');
   const { room, invite } = await a.call('createRoom', { name: 'Watch together' });
   await b.call('join', { invite });
   await until(() => a.server.pending.has(b.server.identity.id));
@@ -108,8 +116,54 @@ test('built extensions control two DOM players over two real TLS companions with
   await b.call('control', { action: 'play' }); await until(() => !a.video.paused);
   await b.call('select', { room, context: 'Episode 2' });
   await a.call('control', { action: 'pause' });
-  await until(async () => (await b.call('status')).notice.includes('another video'));
+  await until(async () => (await b.call('status')).notice.includes('different content'));
   assert.equal(b.video.paused, false, 'different alignment contexts must not control each other');
+});
+
+test('the same video aligns a joining member automatically and stays interactive without a sync click', async t => {
+  const a = await extension(t, 'A', 600), b = await extension(t, 'B', 120);
+  const { invite } = await a.call('createRoom', { name: 'Automatic alignment' });
+  await b.call('join', { invite });
+  await until(() => a.server.pending.has(b.server.identity.id));
+  await a.call('approve', { peer: b.server.identity.id });
+  await until(() => b.video.currentTime === 600);
+  assert.equal((await b.call('status')).binding.anchor, 0);
+  assert.match((await b.call('status')).selection.context, /^auto:/);
+  const sequences = [a.server.sequence, b.server.sequence];
+  await new Promise(r => setTimeout(r, 100));
+  assert.deepEqual([a.server.sequence, b.server.sequence], sequences, 'initial alignment must settle without a message loop');
+  await b.call('control', { action: 'play' }); await until(() => !a.video.paused);
+  a.video.pause(); await until(() => b.video.paused);
+});
+
+test('different episodes are never aligned automatically', async t => {
+  const a = await extension(t, 'A', 600, 'https://www.yifan.tv/play/show?episode=1');
+  const b = await extension(t, 'B', 120, 'https://www.yifan.tv/play/show?episode=2');
+  const { invite } = await a.call('createRoom', { name: 'Different episodes' });
+  await b.call('join', { invite }); await until(() => a.server.pending.has(b.server.identity.id));
+  await a.call('approve', { peer: b.server.identity.id }); await until(() => b.server.peers.size === 1);
+  await new Promise(r => setTimeout(r, 150));
+  assert.equal(a.video.currentTime, 600); assert.equal(b.video.currentTime, 120);
+  await a.video.play(); await new Promise(r => setTimeout(r, 100)); assert.equal(b.video.paused, true);
+});
+
+test('rooms created and joined in the desktop UI align to the existing viewer', async t => {
+  const a = await extension(t, 'Desktop A', 600), b = await extension(t, 'Desktop B', 120);
+  const { room, invite } = await a.server.command('createRoom', { name: 'Created on desktop' });
+  await until(async () => (await a.call('status')).selection.room === room);
+  await b.server.command('join', { invite });
+  await until(() => a.server.pending.has(b.server.identity.id));
+  await a.server.command('approve', { peer: b.server.identity.id });
+  await until(() => b.video.currentTime === 600);
+  assert.equal(a.video.currentTime, 600, 'a desktop-created room must not adopt the joining viewer’s position');
+  await b.call('control', { action: 'play' }); await until(() => !a.video.paused);
+});
+
+test('a fresh extension connects through the native app without configuring a local token', async t => {
+  const member = await extension(t, 'Native', 90, 'https://www.yifan.tv/play/test', true);
+  const status = await member.call('status');
+  assert.equal(status.connected, true); assert.equal(status.transport, 'app'); assert.equal(status.configured, false);
+  const result = await member.call('createRoom', { name: 'Automatic connection' }); assert.ok(result.room);
 });
 
 test('popup renders untrusted device names as text and keeps offline controls disabled', async t => {

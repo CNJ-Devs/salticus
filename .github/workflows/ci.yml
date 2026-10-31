@@ -21,7 +21,16 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: npm run package
+      - if: runner.os == 'macOS'
+        run: npm run desktop:package
       - uses: actions/upload-artifact@v4
         with:
           name: salticus-preview-${{ matrix.os }}
           path: dist/packages/*
+      - if: runner.os == 'macOS'
+        uses: actions/upload-artifact@v4
+        with:
+          name: salticus-macos-installers
+          path: |
+            dist/desktop/*.dmg
+            dist/desktop/*.zip

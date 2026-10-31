@@ -80,3 +80,12 @@ The first usable version keeps manual waiting. Promise automatic ad detection on
 The Manifest V3 extension and local companion are implemented. `npm test` runs two built-extension contexts bound to DOM media, exchanging events over two real TLS companions to verify anchors, play/pause, waiting, and content isolation. A separate test covers three-peer discovery and inviter departure.
 
 Media behavior is simulated in tests. These verify code and messaging, not actual Chrome/Yifan playback. There is no automatic ad detection or continuous drift correction.
+
+## v0.2.0 installer and automatic alignment checks (2026-10-31)
+
+- All 27 automated tests passed, including desktop runtime, native bridge, automatic initial alignment, episode isolation, and desktop-created/joined rooms.
+- Two built-extension contexts aligned simulated DOM players over two real TLS companions without manual anchors or Sync clicks. Subsequent controls propagate both ways.
+- The packaged Apple silicon app launched successfully; windows, existing rooms, and invitation copying worked. Its bundled Electron ran the native bridge and read local status without separately installed Node.js or OpenSSL.
+- Apple silicon and Intel DMG/ZIP bundles were built. Intel hardware execution is untested.
+- The matching v0.2.0 extension has not been reinstalled and tested in real Chrome. Earlier live Yifan checks used v0.1.x. Remote devices, live automatic selection, and initial alignment remain pending.
+- Developer ID signing, notarization, and Chrome Web Store publication are incomplete; this remains a developer preview.
