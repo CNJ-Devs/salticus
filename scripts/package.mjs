@@ -9,6 +9,7 @@ if (result.status !== 0) process.exit(result.status ?? 1);
 console.log(`Extension archive: ${output}`);
 const source = resolve(`dist/packages/salticus-${version}-source.tar.gz`);
 const archive = spawnSync('tar', ['-czf', source, 'README.md', 'LICENSE', 'package.json', 'package-lock.json',
-  '.gitignore', 'companion', 'extension', 'desktop', 'scripts', 'shared', 'tests', 'docs', 'salticus.command'], { stdio: 'inherit' });
+  '.gitignore', 'AGENTS.md', 'CONTRIBUTING.md', '.github', 'companion', 'extension', 'desktop', 'scripts', 'shared', 'tests', 'docs', 'salticus.command'],
+{ stdio: 'inherit', env: { ...process.env, COPYFILE_DISABLE: '1' } });
 if (archive.status !== 0) process.exit(archive.status ?? 1);
 console.log(`Source archive: ${source}`);

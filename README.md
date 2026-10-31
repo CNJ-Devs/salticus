@@ -75,3 +75,5 @@ See the [product and technical baseline](docs/product-direction.md).
 ## Open source
 
 Licensed under the [MIT License](LICENSE). CNJ-Devs manages the repository; users may use and modify the code under MIT. Organization ownership and licensing are separate.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and review conventions, and [maintenance notes](docs/maintenance.md) for component responsibilities and releases. All authored repository content and commit messages use English.
