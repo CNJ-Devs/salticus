@@ -96,4 +96,4 @@ npm run check
 npm run package
 ```
 
-Tests use real local TLS connections and built-extension DOM tests. The live Yifan site, Chrome behavior, macOS permissions, and remote connectivity still need in-person validation.
+Tests cover real local TLS and built-extension DOM behavior. Live Chrome/Yifan checks covered binding, play/pause, anchors, peer sync, and waiting; see the [validation record](yifan-validation.md) for results and retests. Two-Mac network permissions and remote connectivity remain untested.

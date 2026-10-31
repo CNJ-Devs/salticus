@@ -24,6 +24,30 @@ test('waiting preserves local position and ready never resumes playback', async 
   assert.equal(video.currentTime, 588); assert.equal(video.paused, true);
   await controller.apply({ action: 'ready' }, 0); assert.equal(video.paused, true);
 });
+test('a site resuming after a remote paused seek stays paused without echo', async () => {
+  const video = new Video(), events = [], controller = new MediaController(video, action => events.push(action));
+  Object.defineProperty(video, 'currentTime', {
+    get() { return this.time; },
+    set(value) { this.time = value; this.seeking = true; },
+  });
+  await controller.apply({ action: 'sync', position: 60, paused: true }, 588);
+  await video.play();
+  assert.equal(video.paused, true); assert.deepEqual(events, []);
+  video.seeking = false; video.dispatchEvent(new Event('seeked'));
+  // The site resumes asynchronously after its seeked handler, as yifan does.
+  await new Promise(resolve => setTimeout(resolve, 0));
+  await video.play();
+  assert.equal(video.currentTime, 648); assert.equal(video.paused, true); assert.deepEqual(events, []);
+  controller.onInteraction({ isTrusted: true });
+  await video.play();
+  assert.equal(video.paused, false); assert.deepEqual(events, ['play']);
+});
+test('an explicit play command overrides paused-seek correction immediately', async () => {
+  const video = new Video(), events = [], controller = new MediaController(video, action => events.push(action));
+  await controller.apply({ action: 'sync', position: 60, paused: true }, 588);
+  await controller.apply({ action: 'play', position: 60, paused: false }, 588);
+  assert.equal(video.paused, false); assert.deepEqual(events, []);
+});
 test('autoplay rejection is reported and does not swallow a subsequent user play', async () => {
   const video = new Video(), events = [], controller = new MediaController(video, action => events.push(action));
   video.blocked = true;

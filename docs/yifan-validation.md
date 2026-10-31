@@ -28,14 +28,35 @@ These findings support testing HTML media-element controls. Public bundles may c
 
 Resource filenames change with site releases. The project records inspection evidence without storing site bundles, video sources, or user sign-in data.
 
+## Completed live Chrome checks
+
+After the user loaded `dist/extension`, native Chrome UI interactions tested the installed extension on the [test film's playback page](https://www.yifan.tv/play/uE22Zj9bavD):
+
+| Check | Observation |
+| --- | --- |
+| Local connection | The extension showed Local app connected and created a room |
+| Scan and bind | Default Yifan permissions found the visible main film (160:25) and a hidden, unloaded element; main-film binding succeeded |
+| Read state | Displayed film position and state, for example 00:22 and Playing |
+| Play and pause | Pause showed 00:26 and Paused; Play resumed playback |
+| Peer joins | A second independent local companion joined by invitation and fingerprint approval; the UI showed one directly connected peer |
+| Local anchor | Paused at 56.13376 seconds and saved an anchor; the extension showed 00:56 |
+| Remote seek | A relative position of 60 seconds sought locally to about 116.13 seconds; the actual film then advanced |
+| Wait and ready | Wait paused at 02:41 while preserving position; Ready left playback paused and prompted an explicit Play |
+| Local broadcast | Sync from here sent paused state and relative position about 105.65 seconds, matching local 161.79 minus the 56.13-second anchor |
+
+The second peer was an independent process on the same computer using the normal API and real TLS. The receiver was the installed Chrome extension controlling the actual site player. This checks the receive path, not a complete viewing session across two remote devices.
+
+### Findings and fixes from live testing
+
+Yifan resumes automatically after seeking. The initial seek-and-pause resumed playback and echoed a `play` event. Media protection now suppresses site autoplay during and shortly after a remote paused seek. Trusted page input or an explicit Play command clears protection.
+
+Regression tests verify paused asynchronous seeks, no autoplay echo, and subsequent real or explicit playback. The fix is built; live retesting awaits extension reload.
+
 ## Live checks still pending
 
-Browser-tab reads repeatedly timed out. Native Chrome observation worked, but clicks returned stale elements or `noWindowsAvailable`. Playback-page entry and controls were not reliable, leaving these checks pending:
-
-- The main media element's DOM, iframe, or Shadow DOM location and required host permissions.
-- Time, playback state, and seekable ranges read from the extension.
-- Consistency between video and site controls after pause, play, and seeks.
-- Chrome gesture restrictions on remote playback commands.
+- Retest the fixed paused seek and absence of echo on the actual playback page.
+- Verify that native site controls and extension state remain consistent after seeking.
+- Test remote Play gesture restrictions in a fresh browser session.
 - Whether main content, ads, and previews share media elements.
 - Reliable ad events and whether a page-context bridge is needed.
 - Rebinding after episode, source, and fullscreen changes.
@@ -43,11 +64,10 @@ Browser-tab reads repeatedly timed out. Native Chrome observation worked, but cl
 
 ## Next integration checks
 
-1. Locate the actual media element and record its states and events.
-2. Try standard media controls in the content script; consider a minimal page-context bridge only if the instance API is inaccessible.
-3. Explicitly select the main player when a page has several media elements, avoiding ads and previews.
-4. Verify that programmatic operations do not become new user-action broadcasts.
-5. Verify anchor conversion and one-click synchronization with two different anchors before connecting real peers.
+1. Reload the extension and page; retest remote paused seeks and no echo.
+2. Continue native play/pause/seek propagation and fresh-session gesture checks.
+3. Verify the full flow on both users' actual remote macOS + Chrome networks.
+4. Add adapters based on real ad, episode-change, and source-change behavior.
 
 The first usable version keeps manual waiting. Promise automatic ad detection only after testing the actual playback page.
 
