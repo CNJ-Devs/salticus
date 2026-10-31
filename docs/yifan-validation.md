@@ -43,6 +43,9 @@ After the user loaded `dist/extension`, native Chrome UI interactions tested the
 | Remote seek | A relative position of 60 seconds sought locally to about 116.13 seconds; the actual film then advanced |
 | Wait and ready | Wait paused at 02:41 while preserving position; Ready left playback paused and prompted an explicit Play |
 | Local broadcast | Sync from here sent paused state and relative position about 105.65 seconds, matching local 161.79 minus the 56.13-second anchor |
+| Fixed paused seek | After extension/page reload and rebinding, remote sync to 120 seconds stayed paused at 02:00 without extra play/pause echoes |
+| Subsequent playback | An explicit remote Play advanced to 02:06 without being blocked by pause protection |
+| Site controls and propagation | Remote paused sync to 180 seconds showed the site's play button and 00:03:00; clicking Play sent one play event (about 180.01 seconds), and Pause sent one pause event (about 193.10 seconds) |
 
 The second peer was an independent process on the same computer using the normal API and real TLS. The receiver was the installed Chrome extension controlling the actual site player. This checks the receive path, not a complete viewing session across two remote devices.
 
@@ -50,12 +53,14 @@ The second peer was an independent process on the same computer using the normal
 
 Yifan resumes automatically after seeking. The initial seek-and-pause resumed playback and echoed a `play` event. Media protection now suppresses site autoplay during and shortly after a remote paused seek. Trusted page input or an explicit Play command clears protection.
 
-Regression tests verify paused asynchronous seeks, no autoplay echo, and subsequent real or explicit playback. The fix is built; live retesting awaits extension reload.
+Regression tests cover asynchronous autoplay suppression, no echo, and subsequent playback. After reload and rebinding, live retesting passed: remote paused seeks stayed paused without extra events; remote and native page play/pause still worked.
+
+All 19 automated tests, syntax checks, packaging, and the fix's macOS/Ubuntu GitHub CI passed.
 
 ## Live checks still pending
 
-- Retest the fixed paused seek and absence of echo on the actual playback page.
-- Verify that native site controls and extension state remain consistent after seeking.
+- Consistency of native controls across durations, quality settings, and sources.
+- Native seek propagation.
 - Test remote Play gesture restrictions in a fresh browser session.
 - Whether main content, ads, and previews share media elements.
 - Reliable ad events and whether a page-context bridge is needed.
@@ -64,10 +69,9 @@ Regression tests verify paused asynchronous seeks, no autoplay echo, and subsequ
 
 ## Next integration checks
 
-1. Reload the extension and page; retest remote paused seeks and no echo.
-2. Continue native play/pause/seek propagation and fresh-session gesture checks.
-3. Verify the full flow on both users' actual remote macOS + Chrome networks.
-4. Add adapters based on real ad, episode-change, and source-change behavior.
+1. Verify the complete flow across the users' actual remote macOS + Chrome devices.
+2. Continue native seek propagation and fresh-session gesture checks.
+3. Add support based on real ad, episode-change, and source-change behavior.
 
 The first usable version keeps manual waiting. Promise automatic ad detection only after testing the actual playback page.
 

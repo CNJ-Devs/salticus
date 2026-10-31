@@ -8,7 +8,7 @@ Salticus is a planned open-source P2P watch-together tool. Everyone plays video 
 
 A **v0.1.0 developer preview** is available: a Chrome extension and a Node.js companion on your own computer. It supports video binding, manual anchors, synchronized playback and seeking, manual waiting, encrypted direct connections, invitations, and automatic reconnection.
 
-The first target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Real Chrome checks covered binding, play/pause, anchor conversion, peer sync, and manual waiting. A paused-seek autoplay bug was found and fixed, awaiting live retesting. Automated tests cover two extension contexts, DOM media, real TLS, and three-peer connectivity. **Remote two-device testing remains pending**; see the [validation record](docs/yifan-validation.md).
+The initial target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Live checks verified binding, play/pause, anchors, TLS sync, manual waits, the paused-seek autoplay fix, and native play/pause propagation. Automated tests cover two extensions, DOM media, real TLS, and three-peer connectivity. **Two remote devices still need testing**; see the [validation record](docs/yifan-validation.md).
 
 Longer-term goals include other browsers, mobile devices, and local software with no UI or configuration UI only, connecting devices and controlling browsers or native apps as platform APIs allow.
 
