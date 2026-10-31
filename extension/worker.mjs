@@ -68,6 +68,7 @@ function connect() {
         message.ok ? request.resolve(message.data) : request.reject(new Error(message.error));
       } else if (message.type === 'status') {
         companion = message.data;
+        if (companion.lastError) lastError = companion.lastError;
         enqueue(async () => {
           const count = companion.peers.filter(p => p.connected && p.rooms.includes(selection.room)).length;
           if (connectedPeers && !count) { needsInitialSync = true; pendingSync = null; }
@@ -229,6 +230,8 @@ async function command(method, args) {
   if (method === 'control') {
     needsInitialSync = false; pendingSync = null;
     companion = await rpc('status');
+    const roomError = companion.rooms.find(room => room.id === selection.room)?.error;
+    if (roomError) throw new Error(roomError);
     const state = await player('snapshot');
     if (args.action === 'ready') return broadcast('ready', state);
     if (!['sync', 'play', 'pause', 'wait'].includes(args.action)) throw new Error('Unknown playback operation');

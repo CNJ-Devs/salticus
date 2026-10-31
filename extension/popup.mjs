@@ -43,10 +43,11 @@ async function refresh() {
   } else $('binding').textContent = 'Waiting for the main video in the current tab…';
   $('identity').textContent = state.companion?.peer ?? 'Shown after connecting to the local companion';
   const peers = (state.companion?.peers ?? []).filter(peer => peer.rooms.includes(state.selection.room));
+  const roomError = state.companion?.rooms.find(room => room.id === state.selection.room)?.error;
   const members = JSON.stringify(peers);
   if (members !== memberSignature) {
   memberSignature = members;
-  $('members').replaceChildren(element('div', peers.length ? `${peers.filter(p => p.connected).length} peers connected` : 'Your partner appears here after joining and being approved.'));
+  $('members').replaceChildren(element('div', peers.some(p => p.connected) ? 'Partner connected' : peers.length ? 'Waiting for your partner to come online' : 'Waiting for your partner to join this two-person room.'));
   for (const peer of peers) {
     const row = element('div', null, 'member'); row.append(element('span', peer.name), element('span', peer.connected ? `● ${peer.route}` : '○ Waiting for connection')); $('members').append(row);
   }
@@ -64,13 +65,14 @@ async function refresh() {
   }
   }
   const waiting = Object.entries(state.companion?.waiting?.[state.selection.room] ?? {}).filter(([, context]) => context === state.selection.context);
-  $('waiting').textContent = waiting.length ? `${waiting.length} participants are waiting. Clear your own wait when ready, then play together.` : '';
-  for (const button of document.querySelectorAll('[data-action]')) button.disabled = !state.connected || !state.binding || !state.selection.room;
+  $('waiting').textContent = waiting.length ? `${waiting.length > 1 ? 'You are both waiting' : waiting[0][0] === state.companion.peer ? 'You are waiting' : 'Your partner is waiting'}. Clear your own wait when ready, then play together.` : '';
+  for (const button of document.querySelectorAll('[data-action]')) button.disabled = !state.connected || !state.binding || !state.selection.room || !!roomError;
   for (const id of ['create']) $(id).disabled = !state.connected;
-  $('invite').disabled = !state.connected || !state.selection.room;
+  $('invite').disabled = !state.connected || !state.selection.room || !!roomError;
   for (const id of ['anchor-now']) $(id).disabled = !state.binding;
   if (Date.now() > feedbackUntil) {
-    if (state.lastError) feedback(state.lastError, true);
+    if (roomError) feedback(roomError, true);
+    else if (state.lastError) feedback(state.lastError, true);
     else if (state.notice && state.notice !== lastNotice) { lastNotice = state.notice; feedback(state.notice); }
   }
 }

@@ -106,11 +106,21 @@ export class Companion {
   connectKnown() {
     if (this.stopped) return;
     for (const [id, contact] of Object.entries(this.config.contacts)) {
-      if (this.peers.has(id) || !contact.rooms.some(room => this.config.rooms[room])) continue;
+      if (this.peers.has(id) || !contact.rooms.some(room => this.config.rooms[room] && this.canPair(room, id))) continue;
       const endpoints = [...(this.discovered.get(id) ?? []), ...(contact.endpoints ?? [])];
       const unique = new Map(endpoints.filter(validateEndpoint).map(e => [`${e.host}:${e.port}`, e]));
       for (const endpoint of [...unique.values()].slice(0, 16)) this.dial(id, endpoint);
     }
+  }
+
+  roomPartners(room) {
+    return Object.entries(this.config.contacts).filter(([, contact]) => contact.rooms.includes(room)).map(([id]) => id);
+  }
+
+  canPair(room, peer) { return this.roomPartners(room).every(id => id === peer); }
+
+  requirePair(room, peer) {
+    if (!this.canPair(room, peer)) throw new Error('Two-person room is already paired with someone else. Create a new room');
   }
 
   dial(id, endpoint) {
@@ -167,6 +177,13 @@ export class Companion {
         const line = buffer.subarray(0, newline); buffer = buffer.subarray(newline + 1);
         try {
           const message = JSON.parse(line.toString('utf8'));
+          if (message.type === 'room-full') {
+            const contact = this.config.contacts[peerId];
+            if (!contact || !Array.isArray(message.rooms) || !message.rooms.length || message.rooms.length > 32 ||
+                !message.rooms.every(room => validRoomId(room) && contact.rooms.includes(room))) throw new Error('invalid rejection');
+            this.lastError = 'Two-person room on the remote device is already paired. Ask your partner to create a new room'; this.publish();
+            socket.destroy(); return;
+          }
           if (!hello) {
             if (message.type !== 'hello' || message.v !== VERSION || message.peer !== peerId ||
                 typeof message.name !== 'string' || message.name.length > 60 ||
@@ -174,8 +191,10 @@ export class Companion {
                 !Array.isArray(message.waiting) || message.waiting.length > 32 ||
                 !message.waiting.every(wait => validRoomId(wait.room) && typeof wait.context === 'string' && wait.context.length <= 120) ||
                 !Array.isArray(message.endpoints) || message.endpoints.length > 16 || !message.endpoints.every(validateEndpoint)) throw new Error('invalid hello');
-            const shared = message.rooms.filter(room => this.config.rooms[room]);
-            if (!shared.length) throw new Error('no shared room');
+            const offered = message.rooms.filter(room => this.config.rooms[room]);
+            if (!offered.length) throw new Error('no shared room');
+            const shared = offered.filter(room => this.canPair(room, peerId));
+            if (!shared.length) { this.write(socket, { type: 'room-full', rooms: offered }); socket.end(); return; }
             const contact = this.config.contacts[peerId];
             if (!contact || shared.some(room => !contact.rooms.includes(room))) {
               if (this.pending.size < 32) this.pending.set(peerId, { id: peerId, name: message.name, rooms: shared,
@@ -220,19 +239,17 @@ export class Companion {
               if (!/^[a-f0-9]{64}$/.test(member.id) || typeof member.name !== 'string' || !member.name.trim() || member.name.length > 60 ||
                   !Array.isArray(member.rooms) || member.rooms.length > 32 || !member.rooms.every(room => peer.rooms.includes(room)) ||
                   !Array.isArray(member.endpoints) || member.endpoints.length > 16 || !member.endpoints.every(validateEndpoint)) throw new Error('invalid member');
-              if (member.id === this.identity.id || !member.rooms.length) continue;
-              const previous = this.config.contacts[member.id];
-              if (!previous && Object.keys(this.config.contacts).length >= 64) continue;
-              const rooms = [...new Set([...(previous?.rooms ?? []), ...member.rooms])];
-              if (!previous || rooms.length !== previous.rooms.length) {
-                this.config.contacts[member.id] = { name: previous?.name ?? member.name,
-                  endpoints: previous?.endpoints ?? member.endpoints, rooms, introducedBy: previous?.introducedBy ?? peerId };
-                this.pending.delete(member.id); changed = true;
+              // A partner may update their own details, never introduce a third
+              // participant or expand the rooms that were explicitly approved.
+              if (member.id !== peerId) continue;
+              const contact = this.config.contacts[peerId];
+              if (contact.name !== member.name || JSON.stringify(contact.endpoints) !== JSON.stringify(member.endpoints)) {
+                contact.name = member.name; contact.endpoints = member.endpoints; changed = true;
               }
             }
             if (changed) {
               this.persist().catch(() => { this.lastError = 'Could not save room participants'; this.publish(); });
-              this.connectKnown(); this.scheduleRoster(); this.publish();
+              this.publish();
             }
           } else throw new Error('invalid message');
         } catch { socket.destroy(); return; }
@@ -254,17 +271,8 @@ export class Companion {
     this.rosterTimer = setTimeout(() => {
       this.rosterTimer = null;
       for (const peer of this.peers.values()) {
-        const roster = { type: 'roster', members: [] };
-        const members = [{ id: this.identity.id, name: this.config.name, endpoints: this.endpoints(), rooms: peer.rooms },
-          ...Object.entries(this.config.contacts).map(([id, contact]) => ({ id, ...contact }))];
-        for (const member of members) {
-          const rooms = member.rooms.filter(room => peer.rooms.includes(room));
-          if (!rooms.length) continue;
-          const item = { id: member.id, name: member.name, endpoints: member.endpoints, rooms };
-          roster.members.push(item);
-          if (Buffer.byteLength(JSON.stringify(roster)) > MAX_MESSAGE_BYTES - 512) { roster.members.pop(); break; }
-        }
-        this.write(peer.socket, roster);
+        this.write(peer.socket, { type: 'roster', members: [{ id: this.identity.id, name: this.config.name,
+          endpoints: this.endpoints(), rooms: peer.rooms }] });
       }
     }, 50);
     this.rosterTimer.unref();
@@ -294,7 +302,8 @@ export class Companion {
   }
 
   status() {
-    return { peer: this.identity.id, name: this.config.name, activeRoom: this.config.activeRoom, advertise: this.options.advertise, rooms: Object.entries(this.config.rooms).map(([id, room]) => ({ id, name: room.name })),
+    return { peer: this.identity.id, name: this.config.name, activeRoom: this.config.activeRoom, advertise: this.options.advertise, rooms: Object.entries(this.config.rooms).map(([id, room]) => ({ id, name: room.name,
+      ...(this.roomPartners(id).length > 1 ? { error: 'Legacy group rooms are no longer supported. Create a new two-person room' } : {}) })),
       peers: Object.entries(this.config.contacts).map(([id, contact]) => ({ id, name: contact.name, rooms: contact.rooms,
         connected: this.peers.has(id), route: this.peers.get(id)?.endpoint ? 'Direct connection' : (this.peers.has(id) ? 'Inbound direct connection' : 'Disconnected') })),
       pending: [...this.pending.values()].map(({ id, name, rooms }) => ({ id, name, rooms })),
@@ -324,6 +333,7 @@ export class Companion {
     }
     if (method === 'createRoom') {
       if (Object.keys(this.config.rooms).length >= 32) throw new Error('Room limit reached');
+      this.lastError = null;
       const id = randomUUID(); this.config.rooms[id] = { name: text(args.name) };
       this.config.activeRoom = id;
       await this.persist(); this.publish(); return { room: id, invite: this.invite(id) };
@@ -332,7 +342,9 @@ export class Companion {
     if (method === 'join') {
       const invite = parseInvite(args.invite);
       if (invite.peer === this.identity.id) throw new Error('This is your own invitation. Send it to your partner');
+      this.requirePair(invite.room, invite.peer);
       if (Object.keys(this.config.rooms).length >= 32 && !this.config.rooms[invite.room]) throw new Error('Room limit reached');
+      this.lastError = null;
       this.config.rooms[invite.room] ??= { name: invite.name };
       this.config.activeRoom = invite.room;
       const previous = this.config.contacts[invite.peer];
@@ -346,6 +358,7 @@ export class Companion {
     if (method === 'approve') {
       const pending = this.pending.get(args.peer);
       if (!pending || Date.now() - pending.seenAt > 120000) throw new Error('Join request expired. Ask your partner to retry');
+      for (const room of pending.rooms) this.requirePair(room, args.peer);
       const previous = this.config.contacts[args.peer];
       this.config.contacts[args.peer] = { name: text(pending.name), rooms: [...new Set([...(previous?.rooms ?? []), ...pending.rooms])], endpoints: pending.endpoints };
       await this.persist(); this.pending.delete(args.peer);
@@ -354,6 +367,7 @@ export class Companion {
     }
     if (method === 'send') {
       if (!validRoomId(args.room) || !Object.hasOwn(this.config.rooms, args.room)) throw new Error('Select a room first');
+      if (this.roomPartners(args.room).length > 1) throw new Error('Legacy group rooms are no longer supported. Create a new two-person room');
       if (!finite(args.position)) throw new Error('Invalid playback position');
       if (['play', 'sync', 'seek'].includes(args.action) && !args.paused &&
           [...(this.waiting.get(args.room)?.values() ?? [])].includes(args.context)) throw new Error('A participant is still waiting. Each person must clear their own wait first');
@@ -370,6 +384,7 @@ export class Companion {
 
   invite(room) {
     if (!validRoomId(room) || !Object.hasOwn(this.config.rooms, room)) throw new Error('Room not found');
+    if (this.roomPartners(room).length > 1) throw new Error('Legacy group rooms are no longer supported. Create a new two-person room');
     return makeInvite({ v: VERSION, room, name: this.config.rooms[room].name, peer: this.identity.id, endpoints: this.endpoints() });
   }
 

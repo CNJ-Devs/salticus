@@ -16,7 +16,10 @@ async function refresh() {
   if (!settingsDirty) { $('name').value = current.name; $('addresses').value = (current.advertise ?? []).join('\n'); }
   $('fingerprint').textContent = current.peer;
   const peers = current.peers.filter(p => p.rooms.includes(selectedRoom));
-  $('member-count').textContent = `${peers.filter(p => p.connected).length} peers connected`;
+  const roomError = current.rooms.find(r => r.id === selectedRoom)?.error;
+  if (roomError) { feedback(roomError, true); $('invite').disabled = true; }
+  else if (current.lastError) feedback(current.lastError, true);
+  $('member-count').textContent = peers.some(p => p.connected) ? 'Partner connected' : peers.length ? 'Waiting for your partner to come online' : 'Waiting for your partner to join';
   const members = JSON.stringify(peers);
   if (members !== memberSignature) { memberSignature = members; $('members').replaceChildren(...peers.map(peer => { const row = node('div', ''); row.className = 'member'; row.append(node('span', peer.name), node('small', peer.connected ? `● ${peer.route}` : '○ Waiting for connection')); return row; })); }
   const pending = JSON.stringify(current.pending);

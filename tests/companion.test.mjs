@@ -141,21 +141,67 @@ test('a local waiting state survives reconnect and is restored on the other devi
   await assert.rejects(b.command('send', { room, context: 'Episode 1', position: 1, paused: false, action: 'play' }), /waiting/);
 });
 
-test('three room members discover each other and keep syncing after the inviter leaves', async t => {
+test('a paired room refuses a third participant even while its partner is offline', async t => {
   const a = await instance(t, 'A'), b = await instance(t, 'B'), c = await instance(t, 'C');
   const room = await pair(a, b);
-  await c.command('join', { invite: a.invite(room) });
-  await eventually(() => a.pending.has(c.identity.id));
-  await a.command('approve', { peer: c.identity.id });
-  await eventually(() => a.peers.size === 2 && b.peers.size === 2 && c.peers.size === 2);
-  assert.equal(b.config.contacts[c.identity.id].introducedBy, a.identity.id);
-  await a.stop();
-  await eventually(() => b.peers.size === 1 && c.peers.size === 1);
-  const wc = connectExtension(c); wc.on('error', () => {}); t.after(() => wc.terminate()); await once(wc, 'open');
-  const received = [];
-  wc.on('message', bytes => { const msg = JSON.parse(bytes); if (msg.type === 'event') received.push(msg.event); });
-  const { recipients } = await b.command('send', { room, context: 'Episode 1', position: 42, paused: true, action: 'sync' });
-  assert.equal(recipients, 1);
-  await eventually(() => received.length === 1);
-  assert.equal(received[0].sender, b.identity.id); assert.equal(received[0].position, 42);
+  const invite = a.invite(room);
+  await b.stop(); await eventually(() => !a.peers.size);
+  await c.command('join', { invite });
+  await eventually(() => c.lastError?.includes('Two-person room'));
+  assert.equal(a.pending.has(c.identity.id), false);
+  assert.equal(a.peers.has(c.identity.id), false);
+  assert.deepEqual(a.roomPartners(room), [b.identity.id]);
+  await assert.rejects(c.command('join', { invite: b.invite(room) }), /Two-person room/);
+});
+
+test('approving simultaneous requests reserves the room for exactly one partner', async t => {
+  const a = await instance(t, 'A'), b = await instance(t, 'B'), c = await instance(t, 'C');
+  const { room, invite } = await a.command('createRoom', { name: 'Two-person room' });
+  await b.command('join', { invite }); await c.command('join', { invite });
+  await eventually(() => a.pending.has(b.identity.id) && a.pending.has(c.identity.id));
+  await a.command('approve', { peer: b.identity.id });
+  await assert.rejects(a.command('approve', { peer: c.identity.id }), /Two-person room/);
+  assert.deepEqual(a.roomPartners(room), [b.identity.id]);
+  assert.equal(a.config.contacts[c.identity.id], undefined);
+});
+
+test('one app keeps independent pairs in different rooms without introducing their partners', async t => {
+  const a = await instance(t, 'A'), b = await instance(t, 'B'), c = await instance(t, 'C');
+  const ab = await pair(a, b), ac = await pair(a, c);
+  assert.equal(a.peers.size, 2);
+  const wb = connectExtension(b), wc = connectExtension(c);
+  wb.on('error', () => {}); wc.on('error', () => {});
+  t.after(() => { wb.terminate(); wc.terminate(); });
+  await Promise.all([once(wb, 'open'), once(wc, 'open')]);
+  const receivedB = [], receivedC = [];
+  for (const [ws, events] of [[wb, receivedB], [wc, receivedC]]) ws.on('message', bytes => { const m = JSON.parse(bytes); if (m.type === 'event') events.push(m.event); });
+  assert.equal((await a.command('send', { room: ab, context: 'Episode 1', position: 42, paused: true, action: 'sync' })).recipients, 1);
+  await eventually(() => receivedB.length === 1);
+  assert.equal((await a.command('send', { room: ac, context: 'Episode 2', position: 80, paused: true, action: 'sync' })).recipients, 1);
+  await eventually(() => receivedC.length === 1);
+  assert.equal(receivedB[0].room, ab); assert.equal(receivedC[0].room, ac);
+  assert.equal(b.config.contacts[c.identity.id], undefined); assert.equal(c.config.contacts[b.identity.id], undefined);
+});
+
+test('a partner can update their own details but cannot introduce a third device through a roster', async t => {
+  const a = await instance(t, 'A'), b = await instance(t, 'B'), c = await instance(t, 'C');
+  const room = await pair(a, b);
+  b.write(b.peers.get(a.identity.id).socket, { type: 'roster', members: [{ id: c.identity.id, name: 'C', rooms: [room], endpoints: c.endpoints() }] });
+  await b.command('configure', { name: 'New name', advertise: ['100.64.0.8'] });
+  // Waiting for the later details update also confirms the earlier roster was processed.
+  await eventually(() => a.config.contacts[b.identity.id]?.name === 'New name');
+  assert.equal(a.config.contacts[c.identity.id], undefined);
+  assert.equal(a.peers.has(b.identity.id), true);
+});
+
+test('legacy multi-member rooms are retained but cannot send controls or issue new invitations', async t => {
+  const a = await instance(t, 'A'), b = await instance(t, 'B'), c = await instance(t, 'C');
+  const room = await pair(a, b);
+  a.config.contacts[c.identity.id] = { name: 'Previous participant', rooms: [room], endpoints: c.endpoints() };
+  assert.match(a.status().rooms.find(r => r.id === room).error, /Legacy group room/);
+  await assert.rejects(a.command('send', { room, context: 'Episode 1', position: 1, paused: true, action: 'pause' }), /Legacy group room/);
+  assert.throws(() => a.invite(room), /Legacy group room/);
+  assert.equal(a.canPair(room, b.identity.id), false);
+  assert.equal(a.canPair(room, c.identity.id), false);
+  assert.ok(a.config.contacts[b.identity.id]); assert.ok(a.config.contacts[c.identity.id]);
 });

@@ -1,5 +1,11 @@
 # Salticus user guide
 
+## Two-person room development
+
+Version 0.3.0 source limits each room to two participants, with multiple independent rooms saved and one selected by the current player. Offline pairing persists; third participants need a new room. Both people can play, pause, seek, and wait.
+
+Legacy group-room data is retained with a prompt to create a two-person room. The new installer is not released; the 0.2.1 downloads below are the previous preview without pair limits.
+
 ## Normal use: install the app
 
 Both participants need **macOS 13+ and Chrome 120+**. No Node.js, npm, OpenSSL, commands, or open terminal are required.
@@ -34,7 +40,7 @@ Closing the window leaves Salticus in the menu bar and keeps connections running
 
 Offsets stay local. Play, pause, and seek continue automatically without calling out timestamps. Confirm offsets after changing episodes or edits, or choose Restore automatic source alignment.
 
-Initial alignment creates no permanent controller. Joiners request a connected participant's state and accept only a matching request, room, and content reply. Simultaneous starts use deterministic device-identity ordering for that request only; everyone retains control. Offline actions are never replayed.
+Initial alignment grants no permanent control. A joiner requests the partner's state and accepts only a matching request, room, and content reply. Simultaneous starts use deterministic identity ordering for that request; both retain control. Offline actions are never replayed.
 
 ## Ads and buffering
 

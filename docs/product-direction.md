@@ -23,10 +23,12 @@ The same content may come from different platforms or contain different intros, 
 
 ### Rooms and permissions
 
-- Focus on small groups of people who know each other.
-- No permanent controller; any participant can send playback and synchronization actions by default.
+- The current development version supports two-person rooms: you and one partner. Several independent rooms can be saved; the current player selects one at a time.
+- Pair and group viewing are separate scenarios. Group mode is deferred; no mode chooser is needed now.
+- Both people can send playback and sync controls. The inviter only confirms the partner's identity initially.
+- Offline partners keep their pairing. A third person needs a new room rather than taking an offline partner's place.
 - Each client stores room IDs, participant pairings, connection state, and source mappings locally.
-- Temporary differences between participant views are acceptable; no central directory or strongly consistent membership service is required.
+- Partners confirm each other directly without introducing third-party identities or building a mesh.
 - Room IDs separate message contexts. Identity and connection authorization are separate checks; knowing a room ID never grants control.
 - Sharing a video link and binding a local player are separate actions. A sender cannot assume the same platform or authorize control of someone else's tab.
 
@@ -37,7 +39,7 @@ The same content may come from different platforms or contain different intros, 
 - Keep manual resynchronization as occasional recovery, outside the normal matching-source flow.
 - Propagate user-initiated play, pause, and seek actions. Applying remote actions or background corrections must not create new user-action broadcasts.
 - The room waits together for ads or buffering by default. Manual wait and clear-wait controls must work when detection is unavailable.
-- Do not optimize for thousand-person rooms. A future room setting may choose whether one participant's ad pauses everyone.
+- Either person's wait pauses the pair. Group waiting policy belongs to the future group-mode design.
 
 ### Hosting constraints
 
@@ -110,7 +112,7 @@ Peer equality still requires handling duplicate, stale, and looping messages. Th
 - Player control on received synchronization, without treating programmatic changes as fresh user actions.
 - A defined rule for simultaneous operations. Initial versions may briefly diverge and recover through another Sync action; no globally unique last-operation order is promised.
 - Disconnect notices, reconnection, and explicit resynchronization without replaying queued stale seeks.
-- Each person clears only their own wait when several participants are waiting.
+- If both wait, each clears their own wait. Resume explicitly once both are ready.
 - Distinguish waiting from a deliberate user pause so ad completion or readiness does not resume playback incorrectly.
 
 Visible connection and synchronization state matters more than claiming everyone successfully applied an operation.
@@ -139,9 +141,10 @@ Improve ad detection, latency and drift correction, group connections, other sit
 
 ### Implemented behavior and validation limits
 
-- Implemented: standard HTML video and open Shadow DOM scans, frame bindings, anchor conversion, content isolation, echo suppression, manual waits, TLS fingerprints, local API keys, invitations, reconnection, and participant introduction/mesh.
-- Trust: accepting an invitation trusts its fingerprint. First inbound connections require fingerprint comparison and approval. Approved participants may introduce devices for that room; receivers save identities and verify direct TLS connections.
-- Group test: three companions form a mesh; after the inviter leaves, the remaining two still synchronize. Unreachable participants remain disconnected. Controls are not forwarded through other participants.
+- Implemented: HTML video/open Shadow DOM scans, frame bindings, anchor conversion, content isolation, echo suppression, manual waiting, TLS fingerprints, local API keys, invitations, reconnection, and pair limits.
+- Trust: an accepted invitation trusts its fingerprint, and the inviter approves the first inbound fingerprint. Partners update only their own name/address; third-party introductions grant no membership.
+- Pair-limit tests cover third-person rejection, offline reservation, simultaneous approvals, independent partners in different rooms, and message isolation. Legacy group data remains intact with a new-room prompt.
+- Version boundary: pair limits are in 0.3.0 development source. Published 0.2.1 installers retain the earlier group implementation. Package the new source with later UI changes; historical evidence remains version-specific.
 - Resume: each person clears their own wait, then clicks Play together. Automatic resume is excluded initially to respect deliberate pauses.
 - Live Yifan checks verified binding, play/pause, anchors, remote sync, waiting, and native button propagation. Built-extension integration tests cover new automatic matching/initial alignment, pending real two-device verification.
 - Apple silicon packaged startup, windows, invitations, and bundled native bridge are tested. Intel hardware testing remains pending.

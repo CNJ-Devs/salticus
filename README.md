@@ -6,9 +6,11 @@ Salticus is an open-source P2P watch-together tool. Everyone uses their own devi
 
 ## Project status
 
+**Current development direction: two participants per room.** The app can keep several independent rooms with equal permissions. Version 0.3.0 source rejects third participants and removes introductions/mesh; its installer has not been released.
+
 A **v0.2.1 desktop preview** is available: a macOS installer and Chrome extension. Runtime, room/device/network UI, automatic matching-video selection and initial alignment are included. Users need no Node.js, OpenSSL, or terminal. Different versions use manual anchors.
 
-The initial target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Live checks verified binding, play/pause, anchors, TLS sync, manual waits, the paused-seek autoplay fix, and native play/pause propagation. Automated tests cover two extensions, DOM media, real TLS, and three-peer connectivity. **Two remote devices still need testing**; see the [validation record](docs/yifan-validation.md).
+The first target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Live checks verified binding, play/pause, anchors, TLS sync, waiting, the paused-seek fix, and native play/pause propagation. Automated coverage includes two extensions, DOM players, real TLS, pair limits, and room isolation. **Remote two-device testing remains pending**; see the [validation record](docs/yifan-validation.md).
 
 Longer-term goals include other browsers, mobile devices, and local software with no UI or configuration UI only, connecting devices and controlling browsers or native apps as platform APIs allow.
 
@@ -31,7 +33,7 @@ npm run package
 npm run desktop:package
 ```
 
-Development needs Node.js 22+ and npm. `npm run desktop:dev` launches the app. Tests build the extension and cover automatic alignment, content isolation, anchors, player events, Native Messaging, TLS identity, group connections, and reconnection. DOM media is simulated; live-site evidence is separate. Installers live in ignored `dist/`.
+Development requires Node.js 22+ and npm. `npm run desktop:dev` launches the app. Tests build the extension and cover automatic alignment, content isolation, anchors, media events, Native Messaging, TLS, pair limits, room isolation, and reconnection. DOM media is simulated; live results are separate. Ignored `dist/` holds installers.
 
 ## Product principles
 
@@ -41,7 +43,7 @@ Development needs Node.js 22+ and npm. `npm run desktop:dev` launches the app. T
 - **Local alignment for different sources**: manually find the same scene only for different versions and save local offsets. Re-align is an occasional correction.
 - **No project-operated services**: the project runs no signaling, room, or relay servers. Connection options must state their dependencies and reachability limits.
 - **Try available paths**: attempt encrypted connections to configured or discovered LAN, public, or virtual LAN addresses. Validate Bluetooth and nearby options later.
-- **Small groups of people who know each other**: solve watching together for couples and friends before considering very large rooms.
+- **Two-person rooms first**: one partner per room, with multiple independent rooms saved. Design group viewing separately later.
 - **Extension as the first client**: keep the synchronization protocol separate from player adapters so other clients can follow.
 
 ## First-phase goals
@@ -64,7 +66,7 @@ The connection layer tries reachable IPv6/port mappings, LAN, or a user's virtua
 
 The app provides TLS 1.3 direct connections and mDNS discovery. The extension connects through Chrome Native Messaging; development retains an authenticated loopback WebSocket. Identity, rooms, and pairings live in `~/.salticus` on each device. Invitations include fingerprints and addresses; send them only to intended partners.
 
-Room participants can invite others. Paired participants exchange approved device identities and attempt a mesh; TLS fingerprints verify identities. The first inviter has no extra playback rights, and remaining connected participants can continue after they leave.
+Each development-version room binds one partner with TLS fingerprint verification. Both can control playback. Offline partners keep their pairing; create another room to watch with someone else. Room controls stay isolated, and the player selects one active room at a time.
 
 User-configured signaling, STUN, and TURN are deferred and are not first-version dependencies. Multiple transports cannot create a missing remote network path. Explain why a connection is unavailable and what can be configured.
 
