@@ -6,7 +6,7 @@ Salticus is an open-source P2P watch-together tool. Everyone uses their own devi
 
 ## Project status
 
-A **v0.2.0 desktop preview** is available: a macOS app installer and Chrome extension. The app bundles its runtime and offers room, device, and network UI, without Node.js, OpenSSL, or a terminal for users. Matching videos select the main player, align initially, and follow playback controls; different versions use manual anchors.
+A **v0.2.1 desktop preview** is available: a macOS installer and Chrome extension. Runtime, room/device/network UI, automatic matching-video selection and initial alignment are included. Users need no Node.js, OpenSSL, or terminal. Different versions use manual anchors.
 
 The initial target is [Yifan](https://www.yifan.tv/) on **macOS + Chrome**. Live checks verified binding, play/pause, anchors, TLS sync, manual waits, the paused-seek autoplay fix, and native play/pause propagation. Automated tests cover two extensions, DOM media, real TLS, and three-peer connectivity. **Two remote devices still need testing**; see the [validation record](docs/yifan-validation.md).
 
@@ -14,7 +14,7 @@ Longer-term goals include other browsers, mobile devices, and local software wit
 
 ## Getting started
 
-Both participants download the [macOS installer](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.0) and launch Salticus. Use Find browser extension for first-time loading, create/join a room, and open the same episode. The app and extension connect without a pasted local key.
+Both participants download the [macOS installer](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.1), launch Salticus, and use Find browser extension for first-time loading. Create/join a room and open the same episode. The app and extension connect without a pasted local key.
 
 Preview bundles use ad-hoc signing. **Apple distribution signing, notarization, and Chrome Web Store publication are not complete**. First-time extension loading is manual, and macOS may block downloaded apps. Apple silicon startup is verified; Intel needs hardware testing.
 

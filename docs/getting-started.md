@@ -4,7 +4,7 @@
 
 Both participants need **macOS 13+ and Chrome 120+**. No Node.js, npm, OpenSSL, commands, or open terminal are required.
 
-1. Download the appropriate DMG from [v0.2.0](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.0): `arm64` for Apple silicon, `x64` for Intel.
+1. Download the appropriate DMG from [v0.2.1](https://github.com/CNJ-Devs/salticus/releases/tag/v0.2.1): `arm64` for Apple silicon, `x64` for Intel.
 2. Open the DMG, drag **Salticus** into Applications, and launch it.
 3. When the app shows Ready on this device, click Find browser extension.
 4. In Chrome, open `chrome://extensions`, enable Developer mode, click Load unpacked, and select the revealed `extension` folder. Do this once per computer; the extension is not in the Chrome Web Store yet.

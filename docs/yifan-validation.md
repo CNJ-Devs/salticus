@@ -89,3 +89,7 @@ Media behavior is simulated in tests. These verify code and messaging, not actua
 - Apple silicon and Intel DMG/ZIP bundles were built. Intel hardware execution is untested.
 - The matching v0.2.0 extension has not been reinstalled and tested in real Chrome. Earlier live Yifan checks used v0.1.x. Remote devices, live automatic selection, and initial alignment remain pending.
 - Developer ID signing, notarization, and Chrome Web Store publication are incomplete; this remains a developer preview.
+
+### v0.2.1 cold-start fix
+
+Final cold-start testing found that the native bridge passed `ELECTRON_RUN_AS_NODE` when opening the app. Clearing it before launch fixed background startup. The bundled Electron ran the fixed bridge, launched the app, and read existing rooms. v0.2.1 includes this fix.

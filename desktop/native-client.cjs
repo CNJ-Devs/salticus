@@ -39,7 +39,11 @@ async function connect() {
 (async () => {
   // No shell command or remote URL comes from browser messages.
   const appPath = process.env.SALTICUS_APP_PATH;
-  if (process.platform === 'darwin' && appPath) spawn('/usr/bin/open', ['-g', appPath, '--args', '--background'], { stdio: 'ignore' }).unref();
+  if (process.platform === 'darwin' && appPath) {
+    const appEnvironment = { ...process.env };
+    delete appEnvironment.ELECTRON_RUN_AS_NODE;
+    spawn('/usr/bin/open', ['-g', appPath, '--args', '--background'], { env: appEnvironment, stdio: 'ignore' }).unref();
+  }
   for (let attempt = 0; attempt < 15; attempt++) {
     try { await connect(); return; } catch { await new Promise(r => setTimeout(r, 400)); }
   }
